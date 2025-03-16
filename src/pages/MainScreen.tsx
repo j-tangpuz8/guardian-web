@@ -82,6 +82,8 @@ const MainScreen = () => {
 
     if (userId && !chatClient) {
       initChatClient();
+      console.log(token);
+      console.log(userId);
     }
 
     return () => {
