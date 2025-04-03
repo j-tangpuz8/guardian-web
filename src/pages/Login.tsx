@@ -36,7 +36,7 @@ const Login = () => {
       };
 
       const response = await axios.post(
-        `${config.GUARDIAN_SERVER_URL}/login`,
+        `${config.PERSONAL_API}/users/login`,
         loginData
       );
       console.log("Login response:", response.data);

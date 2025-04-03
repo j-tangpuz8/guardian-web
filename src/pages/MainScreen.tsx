@@ -83,7 +83,7 @@ const MainScreen = () => {
 
   const [isRinging, setIsRinging] = useState(false);
 
-  const [currentChannelId, setCurrentChannelId] = useState<string>('general');
+  const [currentChannelId, setCurrentChannelId] = useState<string>('fad-call');
 
   const [isVerified, setIsVerified] = useState(incident?.isVerified || false);
 
@@ -94,6 +94,12 @@ const MainScreen = () => {
   const [incidentType, setIncidentType] = useState<string | null>(null);
 
   const [userData, setUserData] = useState<{ firstName: string; lastName: string; phone: string } | null>(null);
+
+  const [isResolved, setIsResolved] = useState(false);
+
+  const [acceptedAt, setAcceptedAt] = useState<string | null>(null);
+
+  const [lapsTime, setLapsTime] = useState(0);
 
   const handleTemplateSelect = (template: string) => {
     setSelectedTemplate(template);
@@ -118,7 +124,6 @@ const MainScreen = () => {
     setIsUpdating(true);
     
     try {
-      // Use incidentId from props or localStorage if incident._id is not available
       const id = incident?._id || incidentId;
       
       if (!id) {
@@ -149,6 +154,36 @@ const MainScreen = () => {
       console.error('Error updating incident:', error);
     } finally {
       setIsUpdating(false);
+    }
+  };
+
+  const handleCloseIncident = async () => {
+    const id = incident?._id || incidentId;
+    
+    if (!id) {
+        console.error('No incident ID available for closing');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/incidents/update/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                isResolved: true
+            })
+        });
+
+        if (response.ok) {
+            setIsResolved(true);
+            console.log('Incident closed successfully');
+        } else {
+            console.error('Failed to close incident');
+        }
+    } catch (error) {
+        console.error('Error closing incident:', error);
     }
   };
 
@@ -228,7 +263,6 @@ const MainScreen = () => {
           }
         });
         
-        // More detailed event logging
         client.on('all', (event: any) => {
           if (event.type?.includes('call')) {
             console.log('Call event received:', {
@@ -239,7 +273,6 @@ const MainScreen = () => {
           }
         });
         
-        // Log connection state changes
         client.on('connection.changed', (event: any) => {
           console.log('Connection state changed:', event);
         });
@@ -270,8 +303,8 @@ const MainScreen = () => {
           ],
           settings_override: {
             ring: {
-              incoming_call_timeout_ms: 30000, // 30 seconds
-              auto_cancel_timeout_ms: 30000 // 30 seconds
+              incoming_call_timeout_ms: 30000, 
+              auto_cancel_timeout_ms: 30000 
             }
           }
         }
@@ -286,12 +319,12 @@ const MainScreen = () => {
   }, [videoClient, userId]);
 
 
-  useEffect(() => {
-    const storedChannelId = localStorage.getItem('currentChannelId');
-    if (storedChannelId) {
-      setCurrentChannelId(storedChannelId);
-    }
-  }, []);
+  // useEffect(() => {
+  //   const storedChannelId = localStorage.getItem('currentChannelId');
+  //   if (storedChannelId) {
+  //     setCurrentChannelId(storedChannelId);
+  //   }
+  // }, []);
 
   useEffect(() => {
     const fetchIncidentType = async () => {
@@ -316,7 +349,6 @@ const MainScreen = () => {
 
   useEffect(() => {
     const fetchUserData = async () => {
-      // First get the incident ID - either from props or localStorage
       const currentIncidentId = incident?._id || incidentId || localStorage.getItem('currentIncidentId');
       
       if (currentIncidentId) {
@@ -327,8 +359,6 @@ const MainScreen = () => {
           
           const incidentData = await incidentResponse.json();
           
-          // Extract the user ID properly - it might be an object with an ID property
-          // or it might be a string directly
           let userId;
           if (typeof incidentData.user === 'string') {
             userId = incidentData.user;
@@ -341,14 +371,12 @@ const MainScreen = () => {
           console.log('User ID extracted:', userId);
           
           if (userId) {
-            // Now fetch the user data using the user ID from the incident
             const userResponse = await fetch(`/api/users/${userId}`);
             if (!userResponse.ok) throw new Error('Failed to fetch user');
             
             const userData = await userResponse.json();
             console.log('User data fetched:', userData);
             
-            // Set the user data in state
             setUserData({
               firstName: userData.firstName,
               lastName: userData.lastName,
@@ -369,7 +397,6 @@ const MainScreen = () => {
 
   useEffect(() => {
     const fetchIncidentData = async () => {
-      // Get the incident ID from props or localStorage
       const id = incident?._id || incidentId || localStorage.getItem('currentIncidentId');
       
       if (id) {
@@ -377,6 +404,8 @@ const MainScreen = () => {
           const response = await fetch(`/api/incidents/${id}`);
           if (response.ok) {
             const data = await response.json();
+            setIsResolved(data.isResolved);
+            setAcceptedAt(data.acceptedAt);
             setIsVerified(data.isVerified);
           } else {
             console.error('Failed to fetch incident data');
@@ -389,6 +418,26 @@ const MainScreen = () => {
   
     fetchIncidentData();
   }, [incident, incidentId]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (acceptedAt) {
+        const now = new Date();
+        const acceptedTime = new Date(acceptedAt);
+        const elapsedSeconds = Math.floor((now.getTime() - acceptedTime.getTime()) / 1000);
+        setLapsTime(elapsedSeconds);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [acceptedAt]);
+
+  // Function to format laps time
+  const formatLapsTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes} min ${remainingSeconds} sec`;
+  };
 
   if (!user) {
     return <Navigate to="/" replace />;
@@ -678,7 +727,9 @@ const MainScreen = () => {
               </div>
             </div>
           </Grid>
-          <Grid size={{xs: 12}}>
+          
+          <Grid size={{xs: 12}}
+          >
             {videoClient && (
               <div style={{ display: 'contents' }}>
                 <StreamVideo client={videoClient}>
@@ -687,8 +738,87 @@ const MainScreen = () => {
               </div>
             )}
           </Grid>
+
+        <Grid container size={{xs: 12}}
+        marginBottom={"10px"}
+        paddingLeft={"20px"}
+        sx={{ 
+          // backgroundColor: 'red',
+        }}>
+
+        <Grid size={{md: 6}}
+        sx={{
+          display: 'flex',
+          // backgroundColor: 'green',
+          }}>
+            <Grid size={{md:6}}
+            sx={{
+              display: 'flex',
+              gap: '20px'
+              }}>
+                
+              <Typography variant="h6" sx={{ color: 'white' }}>
+                RECEIVED:
+              </Typography>
+              <Typography variant="h6" sx={{ color: 'white' }}>
+                {acceptedAt ? new Date(acceptedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : "Not Accepted"}
+              </Typography>
+            </Grid>
+
+            <Grid size={{md:6}}sx={{
+              display: 'flex',
+              gap: '20px'
+              }}>
+              <Typography variant="h6" sx={{ color: 'white' }}>
+                ELAPSED TIME:
+              </Typography>
+              <Typography variant="h6" sx={{ color: 'white' }}>
+                {formatLapsTime(lapsTime)}
+              </Typography>
+              
+            </Grid>
+          
+          
         </Grid>
-        {videoClient && (
+
+        <Grid size={{md: 6}}
+        
+        alignItems={"center"}
+        sx={{ 
+          // backgroundColor: 'yellow',
+          display: 'flex',
+          justifyContent: 'flex-end',
+          paddingRight: '20px'
+          }}>
+          <Button
+            onClick={handleCloseIncident}
+            variant="contained"
+            disabled={isResolved}
+            sx={{
+            backgroundColor: "#ef5350",
+            height: "2.5rem",
+            paddingLeft: "3rem",
+            paddingRight: "3rem",
+            borderRadius: "8px",
+            "&:hover": {
+            backgroundColor: "darkred",
+
+
+            },}}
+            >
+          <Typography 
+          color="white"
+          sx={{ 
+            fontSize: "18px"
+          }}
+        >
+          Close Incident
+        </Typography>
+          </Button>
+        </Grid>
+        </Grid>
+        </Grid>
+        {/* {videoClient && (
           <div style={{ 
             position: 'fixed', 
             bottom: 10, 
@@ -702,8 +832,17 @@ const MainScreen = () => {
           }}>
             Video Client Connected
           </div>
-        )}
+        )} */}
+
+        
+        
+
       </Container>
+
+     
+
+
+      
       <Modal
         open={openModal}
         onClose={handleCloseModal}
@@ -732,9 +871,9 @@ const MainScreen = () => {
     width: '100%',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'space-between', // Changed from 'center' to 'space-between'
+    justifyContent: 'space-between', 
     padding: '12px',
-    marginTop: '20px' // Added some padding
+    marginTop: '20px' 
   }}>
   <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold', margin: '0 auto' }}>
     CONNECT TO OPERATION CENTER
@@ -910,7 +1049,6 @@ const VideoCallHandler = () => {
   const calls = useCalls();
   const navigate = useNavigate();
   
-  // Log calls for debugging
   useEffect(() => {
     if (calls.length > 0) {
       console.log("Active calls:", calls.length);

@@ -20,11 +20,11 @@ type FormData = {
 
 const Register = () => {
   const [formData, setFormData] = useState<FormData>({
-    email: "",
-    password: "",
     firstName: "",
     lastName: "",
+    email: "",
     phone: "",
+    password: "",
     address: "",
     barangay: "",
     city: "",
@@ -45,11 +45,10 @@ const Register = () => {
 
     try {
       const response = await axios.post(
-        `${config.GUARDIAN_SERVER_URL}/register`,
-        {
-          email: formData.email,
-          password: formData.password
-        }
+        `${config.PERSONAL_API}/users/`,
+        
+          formData
+        
       );
 
       // await axios.post(
