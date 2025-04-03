@@ -7,16 +7,18 @@ import { useEffect } from 'react';
 export const CallPanel = () => {
   const call = useCall();
   const navigate = useNavigate();
-  const { useCallCallingState } = useCallStateHooks();
+  const { useCallCallingState, useCallCreatedBy } = useCallStateHooks();
   const callingState = useCallCallingState();
+  const creator = useCallCreatedBy();
 
   useEffect(() => {
     console.log(`Call state in CallPanel: ${callingState}`);
+    console.log("Call creator:", creator);
     if (callingState === CallingState.JOINED) {
       console.log("Call joined, navigating to call screen");
       navigate('/call');
     }
-  }, [callingState, navigate]);
+  }, [callingState, navigate, creator]);
 
   if (!call) {
     console.log("No call object available");
@@ -28,6 +30,8 @@ export const CallPanel = () => {
     cid: call.cid,
     isCreatedByMe: call.isCreatedByMe,
     callingState: callingState,
+    creator: creator,
+    members: call.state.members
   });
 
   if ([CallingState.RINGING, CallingState.JOINING].includes(callingState)) {

@@ -290,16 +290,21 @@ const MainScreen = () => {
     
     try {
       setIsRinging(true);
-      console.log("Creating new ring call to user 1beozaei5ny");
+      console.log("Creating new ring call with user ID:", userId);
+      console.log("Video client state:", videoClient.state);
       
-      const newCall = videoClient.call("default", "newRingCallByJolo");
+      const callId = `call-${Date.now()}`;
+      console.log("Creating call with ID:", callId);
+      
+      const newCall = videoClient.call("default", callId);
+      console.log("New call created with ID:", newCall.id);
       
       await newCall.getOrCreate({
         ring: true,
         data: {
           members: [
             { user_id: userId },
-            { user_id: "1beozaei5ny" }
+            { user_id: "67ebb79c16a2ae43e3239eeb" }
           ],
           settings_override: {
             ring: {
@@ -310,14 +315,17 @@ const MainScreen = () => {
         }
       });
       
-      console.log("Ring call created successfully", newCall.id);
+      console.log("Ring call created successfully", {
+        callId: newCall.id,
+        isCreatedByMe: newCall.isCreatedByMe,
+        members: newCall.state.members
+      });
     } catch (error) {
       console.error("Error creating ring call:", error);
     } finally {
       setIsRinging(false);
     }
   }, [videoClient, userId]);
-
 
   // useEffect(() => {
   //   const storedChannelId = localStorage.getItem('currentChannelId');

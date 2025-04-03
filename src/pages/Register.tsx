@@ -20,11 +20,11 @@ type FormData = {
 
 const Register = () => {
   const [formData, setFormData] = useState<FormData>({
+    email: "",
+    password: "",
     firstName: "",
     lastName: "",
-    email: "",
     phone: "",
-    password: "",
     address: "",
     barangay: "",
     city: "",
@@ -46,9 +46,7 @@ const Register = () => {
     try {
       const response = await axios.post(
         `${config.PERSONAL_API}/users/`,
-        
           formData
-        
       );
 
       // await axios.post(
