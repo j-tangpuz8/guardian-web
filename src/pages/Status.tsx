@@ -12,6 +12,7 @@ import policeSound from '../assets/sounds/police.mp3';
 import fireSound from '../assets/sounds/fire.mp3';
 import ambulanceSound from '../assets/sounds/ambulance.mp3';
 import generalSound from '../assets/sounds/general.mp3';
+import config from "../config";
 
 interface Incident {
   _id: string;
@@ -84,7 +85,7 @@ export default function Status() {
 
     const checkForIncidents = async () => {
       try {
-        const response = await fetch('/api/incidents');
+        const response = await fetch(`${config.PERSONAL_API}/incidents`);
         const incidents = await response.json();
         
         const unresolvedIncidents = incidents.filter((incident: Incident) => !incident.isAccepted);
@@ -139,6 +140,17 @@ export default function Status() {
     };
   }, [currentIncident, lastCheck, isInvisible]); 
 
+
+
+  // const loggedInUserId = localStorage.getItem('userId');
+
+  // console.log(loggedInUserId)
+
+  // console.log(userId)
+  
+
+
+
   const handleCloseModal = () => {
     setOpenModal(false);
     if (audioRef.current) {
@@ -172,7 +184,7 @@ export default function Status() {
           icon: fireIcon
           
         };
-      case 'crime':
+      case 'police':
         return {
           primary: '#1e4976',  
           secondary: '#333333',
@@ -208,27 +220,29 @@ export default function Status() {
 };
 
   const handleAcceptIncident = async () => {
-    if (!currentIncident) return;
+    if (!currentIncident || !userId) return;
 
     try {
-
-      const response = await fetch(`/api/incidents/update/${currentIncident._id}`, {
+      const response = await fetch(`${config.PERSONAL_API}/incidents/update/${currentIncident._id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({
-          isAccepted: true
+          isAccepted: true,
+          dispatcher: userId
         })
       });
 
-      if (response.ok) {
-        setOpenModal(false);
-        setCurrentIncident(null);
-      } else {
-        console.error('Failed to update incident');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to update incident');
       }
 
+      const data = await response.json();
+      console.log('Update response:', data);
+      
       const channelId = await getNextChannelId(currentIncident.incidentType, currentIncident._id);
       
       const channel = client.channel('messaging', channelId, {
@@ -237,13 +251,6 @@ export default function Status() {
       });
       
       await channel.create();
-
-      const initialMessage = `Your report ${currentIncident.incidentType} Call was received with a location at Casuntingan Mandaue, can you verify the location, by giving us a landmark around you?`;
-      
-      await channel.sendMessage({
-        text: initialMessage,
-        user_id: userId
-      });
 
       localStorage.setItem('currentIncidentId', currentIncident._id);
       localStorage.setItem('currentChannelId', channelId);
@@ -261,7 +268,8 @@ export default function Status() {
       setCurrentIncident(null);
       
     } catch (error) {
-      console.error('Error creating channel:', error);
+      console.error('Error in handleAcceptIncident:', error);
+      // You might want to show an error message to the user here
     }
   };
 

@@ -39,6 +39,12 @@ const Login = () => {
         `${config.PERSONAL_API}/users/login`,
         loginData
       );
+
+      // const response = await axios.post(
+      //   `${config.GUARDIAN_SERVER_URL}/login`,
+      //   loginData
+      // );
+      
       console.log("Login response:", response.data);
 
       const {token, user} = response.data;

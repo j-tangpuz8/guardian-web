@@ -93,6 +93,10 @@ const MainScreen = () => {
 
   const [incidentType, setIncidentType] = useState<string | null>(null);
 
+  const [coordinates, setcoordinates] = useState({lat: "", long: ""});
+
+  const [volunteerID, setVolunteerID] = useState<string>("");
+
   const [userData, setUserData] = useState<{ firstName: string; lastName: string; phone: string } | null>(null);
 
   const [isResolved, setIsResolved] = useState(false);
@@ -100,6 +104,14 @@ const MainScreen = () => {
   const [acceptedAt, setAcceptedAt] = useState<string | null>(null);
 
   const [lapsTime, setLapsTime] = useState(0);
+
+  const [lguUsers, setLguUsers] = useState<any[]>([]);
+
+  const [selectedLgu, setSelectedLgu] = useState<any>(null);
+
+  const [modalIncident, setModalIncident] = useState<string>("");
+
+  const [modalIncidentDescription, setModalIncidentDescription] = useState<string>("");
 
   const handleTemplateSelect = (template: string) => {
     setSelectedTemplate(template);
@@ -133,7 +145,7 @@ const MainScreen = () => {
       
       console.log('Updating verification status for incident:', id);
       
-      const response = await fetch(`/api/incidents/update/${id}`, {
+      const response = await fetch(`${config.PERSONAL_API}/incidents/update/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -166,7 +178,7 @@ const MainScreen = () => {
     }
     
     try {
-        const response = await fetch(`/api/incidents/update/${id}`, {
+        const response = await fetch(`${config.PERSONAL_API}/incidents/update/${id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -187,6 +199,8 @@ const MainScreen = () => {
     }
   };
 
+  
+
   const user = {
     id: userId,
     name: userStr2?.name || "User",
@@ -205,7 +219,7 @@ const MainScreen = () => {
           icon: fireIcon
           
         };
-      case 'crime':
+      case 'police':
         return {
           icon: crimeIcon
         };
@@ -216,6 +230,8 @@ const MainScreen = () => {
         };
     }
   };
+
+  
   
 
   useEffect(() => {
@@ -285,12 +301,24 @@ const MainScreen = () => {
     }
   }, [userId, token]);
 
-  const handleCreateRingCall = useCallback(async () => {
-    if (!videoClient) return;
+  const handleLogout = () => {
+    // Clear user data from localStorage
+    localStorage.clear();
+    
+    // Redirect to login page
+    navigate("/");
+  };
+
+  const handleCreateRingCall = async () => {
+    if (!videoClient || !volunteerID) {
+      console.error("Video client not initialized or no volunteer ID available");
+      return;
+    }
     
     try {
       setIsRinging(true);
       console.log("Creating new ring call with user ID:", userId);
+      console.log("Calling volunteer ID:", volunteerID);
       console.log("Video client state:", videoClient.state);
       
       const callId = `call-${Date.now()}`;
@@ -304,7 +332,7 @@ const MainScreen = () => {
         data: {
           members: [
             { user_id: userId },
-            { user_id: "67ebb79c16a2ae43e3239eeb" }
+            { user_id: volunteerID }
           ],
           settings_override: {
             ring: {
@@ -325,14 +353,14 @@ const MainScreen = () => {
     } finally {
       setIsRinging(false);
     }
-  }, [videoClient, userId]);
+  }
 
-  // useEffect(() => {
-  //   const storedChannelId = localStorage.getItem('currentChannelId');
-  //   if (storedChannelId) {
-  //     setCurrentChannelId(storedChannelId);
-  //   }
-  // }, []);
+  useEffect(() => {
+    const storedChannelId = localStorage.getItem('currentChannelId');
+    if (storedChannelId) {
+      setCurrentChannelId(storedChannelId);
+    }
+  }, []);
 
   useEffect(() => {
     const fetchIncidentType = async () => {
@@ -375,9 +403,11 @@ const MainScreen = () => {
           } else if (incidentData.user && typeof incidentData.user.toString === 'function') {
             userId = incidentData.user.toString();
           }
+
+          setVolunteerID(userId);
           
           console.log('User ID extracted:', userId);
-          
+
           if (userId) {
             const userResponse = await fetch(`/api/users/${userId}`);
             if (!userResponse.ok) throw new Error('Failed to fetch user');
@@ -415,6 +445,7 @@ const MainScreen = () => {
             setIsResolved(data.isResolved);
             setAcceptedAt(data.acceptedAt);
             setIsVerified(data.isVerified);
+            setcoordinates({lat: data.incidentDetails.coordinates.lat, long: data.incidentDetails.coordinates.lon});
           } else {
             console.error('Failed to fetch incident data');
           }
@@ -426,6 +457,8 @@ const MainScreen = () => {
   
     fetchIncidentData();
   }, [incident, incidentId]);
+
+  
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -447,6 +480,67 @@ const MainScreen = () => {
     return `${minutes} min ${remainingSeconds} sec`;
   };
 
+  const fetchLguUsers = async () => {
+    try {
+      const response = await fetch(`${config.PERSONAL_API}/users/role/LGU`);
+      if (response.ok) {
+        const data = await response.json();
+        setLguUsers(data.users || []);
+      } else {
+        console.error('Failed to fetch LGU users');
+      }
+    } catch (error) {
+      console.error('Error fetching LGU users:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchLguUsers();
+  }, []);
+
+  const handleConnect = async (lguUser: any) => {
+    try {
+      const id = incident?._id || incidentId;
+      if (!id) {
+        console.error('No incident ID available');
+        return;
+      }
+
+
+      const response = await fetch(`${config.PERSONAL_API}/incidents/update/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          lgu: lguUser._id,
+          incidentDetails: {
+            coordinates: {
+              lat: coordinates.lat, 
+              lon: coordinates.long
+            },
+            incident: modalIncident || "Vehicular Collision",
+            incidentDescription: modalIncidentDescription
+          }
+        })
+      });
+
+      if (response.ok) {
+        const responseData = await response.json();
+        console.log("Update response:", responseData);
+        setSelectedLgu(lguUser);
+        handleCloseModal();
+      } else {
+        console.error('Failed to update incident with LGU');
+        const errorData = await response.json();
+        console.error('Error details:', errorData);
+      }
+    } catch (error) {
+      console.error('Error updating incident:', error);
+    }
+  };
+
   if (!user) {
     return <Navigate to="/" replace />;
   }
@@ -460,8 +554,6 @@ const MainScreen = () => {
 
   const { icon } = getIncidentIcon(incidentType || 'general');
 
-
-  
 
   return (
     <div className="min-h-screen bg-[#1B4965]">
@@ -494,8 +586,9 @@ const MainScreen = () => {
                     {incidentType ? incidentType.toUpperCase() : ""}
                   </Typography>
                   <Typography sx={{fontWeight: "bold"}}>
-                    GEOLOCATION ADDRESS OF CALLER
+                    {coordinates ? coordinates.lat + " " + coordinates.long: ""}
                   </Typography>
+                  
                 </div>
               </Grid>
               <Grid
@@ -524,6 +617,7 @@ const MainScreen = () => {
                 )}
                 </div>
               </Grid>
+              
               <Grid size={{md: 4}}>
                 <div className="flex flex-col gap-4 justify-center">
                   <div className="flex flex-row items-center gap-6">
@@ -610,6 +704,20 @@ const MainScreen = () => {
                       >
                         {isRinging ? "Calling..." : "Ring Call"}
                       </Button>
+                      <Button
+    variant="contained"
+    onClick={handleLogout}
+    sx={{
+      backgroundColor: "#ef5350",
+      color: "white",
+      marginTop: "0.5rem",
+      "&:hover": {
+        backgroundColor: "#d32f2f",
+      },
+    }}
+  >
+    Logout
+  </Button>
                     </div>
                     <AccountCircleIcon
                       sx={{
@@ -617,6 +725,7 @@ const MainScreen = () => {
                         color: "white",
                       }}
                     />
+                    
                   </div>
                   <div className="flex flex-row items-center gap-6">
                     <Paper
@@ -903,6 +1012,7 @@ const MainScreen = () => {
   >
     <CloseIcon />
   </IconButton>
+  
 </Box>
       <Box
         sx={{
@@ -966,7 +1076,11 @@ const MainScreen = () => {
         <TextField
             select
             fullWidth
-            value="Vehicular Collision"
+            value={modalIncident}
+            onChange={(e) => {
+              console.log("Selected incident type:", e.target.value);
+              setModalIncident(e.target.value);
+            }}
             variant="outlined"
             sx={{ 
               mb: 2,
@@ -978,6 +1092,9 @@ const MainScreen = () => {
             }}
           >
             <option value="Vehicular Collision">Vehicular Collision</option>
+            <option value="Medical Emergency">Medical Emergency</option>
+            <option value="Fire">Fire</option>
+            <option value="Police">Police</option>
           </TextField>
           <Typography variant="body2" sx={{ color: 'white', mb: 1 }}>
             Message
@@ -986,7 +1103,8 @@ const MainScreen = () => {
             multiline
             rows={4}
             fullWidth
-            defaultValue="Details: Patient: 1 person, male, 45-50 yrs, with broken bones, pin down. Conscious"
+            value={modalIncidentDescription}
+            onChange={(e) => setModalIncidentDescription(e.target.value)}
             variant="outlined"
             sx={{ 
               backgroundColor: 'white',
@@ -1012,23 +1130,29 @@ const MainScreen = () => {
       <button style={{marginLeft: '10px', padding: '8px 15px', background: '#1e5a71', color: 'white', border: 'none', borderRadius: '4px'}}>Search</button>
     </div>
     
-    {[
-      {name: "Bantay Mandaue", time: "13 Min", distance: "2.3km"},
-      {name: "Banilad Responder", time: "13 Min", distance: "2.3km"},
-      {name: "XYZ OpCen", time: "13 Min", distance: "2.3km"},
-      {name: "123 Opcen", time: "13 Min", distance: "2.3km"}
-    ].map((center) => (
-      <div key={center.name} style={{display: 'flex', alignItems: 'center', padding: '10px', borderBottom: '1px solid #eee', marginBottom: '5px'}}>
+    {lguUsers.map((user) => (
+      <div key={user._id} style={{display: 'flex', alignItems: 'center', padding: '10px', borderBottom: '1px solid #eee', marginBottom: '5px'}}>
         <div style={{flex: 1}}>
-          <div>{center.name}</div>
+          <div>{user.firstName} {user.lastName}</div>
         </div>
         <div style={{marginRight: '15px', textAlign: 'right'}}>
-          <div>{center.time}</div>
-          <div>{center.distance}</div>
+          <div>13 Min</div>
+          <div>2.3 KM</div>
         </div>
-        <button style={{padding: '8px 15px', background: '#1e5a71', color: 'white', border: 'none', borderRadius: '4px'}}>Connect</button>
+        <button 
+          onClick={() => handleConnect(user)}
+          style={{padding: '8px 15px', background: '#1e5a71', color: 'white', border: 'none', borderRadius: '4px'}}
+        >
+          Connect
+        </button>
       </div>
     ))}
+    
+    {lguUsers.length === 0 && (
+      <div style={{textAlign: 'center', padding: '20px', color: '#666'}}>
+        No LGU users available
+      </div>
+    )}
     
     <div style={{textAlign: 'center', marginTop: '10px'}}>
       <button style={{background: 'none', border: 'none', color: '#1e5a71'}}>More</button>

@@ -49,6 +49,11 @@ const Register = () => {
           formData
       );
 
+      // const response = await axios.post(
+      //   `${config.GUARDIAN_SERVER_URL}/register/`,
+      //     formData
+      // );
+
       // await axios.post(
       //   `${config.GUARDIAN_SERVER_URL}/users`,
       //   formData

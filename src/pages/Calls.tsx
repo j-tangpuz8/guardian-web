@@ -280,13 +280,16 @@ export const VideoCall = () => {
       {/* <MyFloatingLocalParticipant participant={localParticipant} /> */}
       <SpeakerLayout participantsBarPosition="bottom" />
       <div className="flex justify-center items-center gap-5">
-        <CallControls />
-        <Button
+        <CallControls 
+        onLeave = {handleLeaveCall}
+        />
+
+        {/* <Button
           onClick={() => handleLeaveCall()}
           variant="contained"
           sx={{backgroundColor: "maroon"}}>
           Leave Call
-        </Button>
+        </Button> */}
         <Typography variant="h6" color="white">
           Participants in this call: {participantCount}
         </Typography>
