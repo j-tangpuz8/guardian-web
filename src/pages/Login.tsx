@@ -6,6 +6,7 @@ import {useState} from "react";
 import axios from "axios";
 import config from "../config";
 import {useNavigate} from "react-router-dom";
+import {StreamChat} from 'stream-chat';
 
 type FormData = {
   email: string;
@@ -40,21 +41,46 @@ const Login = () => {
         loginData
       );
 
-      // const response = await axios.post(
-      //   `${config.GUARDIAN_SERVER_URL}/login`,
-      //   loginData
-      // );
-      
-      console.log("Login response:", response.data);
-
       const {token, user} = response.data;
-      localStorage.setItem("user", JSON.stringify(user));
+      
+      // Log the user data to verify the role
+      console.log('Login response:', response.data);
+      
+      // Store user data and token
+      localStorage.setItem("user", JSON.stringify({
+        ...user,
+        id: user._id // Add id field for compatibility
+      }));
       localStorage.setItem("token", token);
-      setFormData({email: "", password: ""});
 
-      navigate("/main", {
-        state: {user},
-      });
+      // Initialize Stream Chat client
+      const chatClient = new StreamChat(config.STREAM_APIKEY);
+      
+      // Connect user to Stream Chat
+      await chatClient.connectUser(
+        {
+          id: user._id,
+          name: user.firstName + " " + user.lastName,
+        },
+        token
+      );
+
+      // Store chat client
+      localStorage.setItem("chatClient", JSON.stringify({
+        id: user._id,
+        token: token
+      }));
+
+      // Check user role and navigate accordingly
+      const userRole = (user.role || 'default').toLowerCase();
+      console.log('User role:', userRole);
+      
+      if (userRole === 'lgu') {
+        window.location.href = '/lgu-status';
+      } else {
+        window.location.href = '/status';
+      }
+
     } catch (err: any) {
       console.error("Login error:", err.response?.data);
       setError(
@@ -125,6 +151,11 @@ const Login = () => {
                   value={formData.password}
                   onChange={handleChange}
                 />
+                {error && (
+                  <Typography color="error" variant="body2">
+                    {error}
+                  </Typography>
+                )}
                 <center>
                   <div className="text-white text-sm">
                     <span className="cursor-pointer hover:underline">

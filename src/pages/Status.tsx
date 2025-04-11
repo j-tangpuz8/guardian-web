@@ -27,21 +27,36 @@ interface Incident {
   };
   createdAt: string;
   channelId?: string;
+  lgu?: string;
+  lguStatus?: string;
 }
 
 export default function Status() {
+  // Get user data from localStorage
+  const userStr = localStorage.getItem("user");
+  const userData = userStr ? JSON.parse(userStr) : null;
+  
+  // Hooks must be called before any conditional returns
   const { client } = useChatContext();
+  const navigate = useNavigate();
   const [isInvisible, setIsInvisible] = useState(true);
   const [openModal, setOpenModal] = useState(false);
   const [currentIncident, setCurrentIncident] = useState<Incident | null>(null);
   const [lastCheck, setLastCheck] = useState(Date.now());
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const userStr = localStorage.getItem("user");
-  const userStr2 = userStr ? JSON.parse(userStr) : null;
-  const userId = userStr2?.id;
-  const navigate = useNavigate();
+  
+  // Safe access to user data
+  const userId = userData?.id;
+  const userRole = userData?.role;
+  const userName = userData?.name || "Jolony Tangpuy";
 
+  // Check authentication - NOW we can do an early return 
+  // after all hooks have been called
+  if (!userData) {
+    return <Navigate to="/" replace />;
+  }
 
+  // Setup CSS animation for shake effect
   useEffect(() => {
     const style = document.createElement('style');
     style.innerHTML = `
@@ -71,35 +86,56 @@ export default function Status() {
     };
   }, []);
 
-  if (!userStr2) {
-    return <Navigate to="/" replace />;
-  }
-
-  const user: User = {
-    id: userId,
-    name: userStr2?.name || "Jolony Tangpuy",
-  };
-
+  // Effect for checking incidents
   useEffect(() => {
+    // Early return if user is not logged in or is offline
+    if (!userId || isInvisible) {
+      setCurrentIncident(null);
+      setOpenModal(false);
+      return;
+    }
+    
     let interval: NodeJS.Timeout;
 
     const checkForIncidents = async () => {
       try {
-        const response = await fetch(`${config.PERSONAL_API}/incidents`);
+        let response;
+        if (userRole === 'LGU') {
+          // For LGU users, check for connecting incidents assigned to them
+          response = await fetch(`${config.PERSONAL_API}/incidents/lgu-connecting/${userId}`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          });
+        } else {
+          // For dispatchers, check for unaccepted incidents
+          response = await fetch(`${config.PERSONAL_API}/incidents`);
+        }
+        
         const incidents = await response.json();
         
-        const unresolvedIncidents = incidents.filter((incident: Incident) => !incident.isAccepted);
-        const mostRecentIncident = unresolvedIncidents.sort((a: Incident, b: Incident) => 
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        )[0];
+        let relevantIncident;
+        if (userRole === 'LGU') {
+          // For LGU users, show the first connecting incident
+          relevantIncident = incidents.find((incident: Incident) => 
+            incident.lgu === userId && 
+            incident.lguStatus === "connecting"
+          );
+        } else {
+          // For dispatchers, show the most recent unaccepted incident
+          const unresolvedIncidents = incidents.filter((incident: Incident) => !incident.isAccepted);
+          relevantIncident = unresolvedIncidents.sort((a: Incident, b: Incident) => 
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          )[0];
+        }
         
-        if (mostRecentIncident && (!currentIncident || currentIncident._id !== mostRecentIncident._id)) {
-          setCurrentIncident(mostRecentIncident);
+        if (relevantIncident && (!currentIncident || currentIncident._id !== relevantIncident._id)) {
+          setCurrentIncident(relevantIncident);
           setOpenModal(true);
           setLastCheck(Date.now());
 
           if (audioRef.current) {
-            switch (mostRecentIncident.incidentType.toLowerCase()) {
+            switch (relevantIncident.incidentType.toLowerCase()) {
               case 'police':
                 audioRef.current.src = policeSound;
                 break;
@@ -116,40 +152,38 @@ export default function Status() {
               console.error('Error playing sound:', error);
             });
           }
-
-          console.log('Status Component - Current Incident ID:', mostRecentIncident._id);
         }
       } catch (error) {
         console.error('Error fetching incidents:', error);
       }
     };
 
-    if (!isInvisible) {
-      checkForIncidents();
-      
-      interval = setInterval(checkForIncidents, 3000);
-    } else {
-      setCurrentIncident(null);
-      setOpenModal(false);
-    }
+    // Initial check
+    checkForIncidents();
+    
+    // Setup interval for subsequent checks
+    interval = setInterval(checkForIncidents, 3000);
 
     return () => {
       if (interval) {
         clearInterval(interval);
       }
     };
-  }, [currentIncident, lastCheck, isInvisible]); 
+  }, [currentIncident, lastCheck, isInvisible, userId, userRole]);
 
-
-
-  // const loggedInUserId = localStorage.getItem('userId');
-
-  // console.log(loggedInUserId)
-
-  // console.log(userId)
-  
-
-
+  const handleLogout = () => {
+    // First cancel any ongoing activities
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    
+    // Clear user data from localStorage
+    localStorage.clear();
+    
+    // Redirect to login page
+    navigate("/", { replace: true });
+  };
 
   const handleCloseModal = () => {
     setOpenModal(false);
@@ -160,11 +194,15 @@ export default function Status() {
   };
 
   const toggleStatus = async () => {
-    await client.upsertUser({
-      id: userId,
-      invisible: !isInvisible,
-    });
-    setIsInvisible(!isInvisible);
+    try {
+      await client.upsertUser({
+        id: userId,
+        invisible: !isInvisible,
+      });
+      setIsInvisible(!isInvisible);
+    } catch (error) {
+      console.error('Error toggling status:', error);
+    }
   };
 
   const getIncidentColors = (incidentType: string) => {
@@ -180,7 +218,7 @@ export default function Status() {
       case 'fire':
         return {
           primary: '#1e4976',  
-          secondary: '#ef5350',
+          secondary: '#F27572',
           icon: fireIcon
           
         };
@@ -202,38 +240,56 @@ export default function Status() {
 
   const getNextChannelId = async (incidentType: string, incidentId: string) => {
     try {
-        if (typeof window === 'undefined' || !crypto.subtle) {
-            throw new Error("Web Crypto API is not available in this environment.");
-        }
+        // if (typeof window === 'undefined' || !crypto.subtle) {
+        //     throw new Error("Web Crypto API is not available in this environment.");
+        // }
 
-        const encoder = new TextEncoder();
-        const data = encoder.encode(incidentId);
-        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        const shortHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 8);
+        // const encoder = new TextEncoder();
+        const data = incidentId.substring(5,9);
 
-        return `${incidentType.toLowerCase()}-${shortHash}`;
+        // const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        // const hashArray = Array.from(new Uint8Array(hashBuffer));
+        // const shortHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 8);
+
+        return `${incidentType.toLowerCase()}-${data}`;
     } catch (error) {
         console.error('Error generating channel ID:', error);
         return `${incidentType.toLowerCase()}-error`;
     }
-};
+  };
 
   const handleAcceptIncident = async () => {
     if (!currentIncident || !userId) return;
 
     try {
-      const response = await fetch(`${config.PERSONAL_API}/incidents/update/${currentIncident._id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          isAccepted: true,
-          dispatcher: userId
-        })
-      });
+      let response;
+      if (userRole === 'LGU') {
+        // For LGU users, accept the connection
+        response = await fetch(`${config.PERSONAL_API}/incidents/update/${currentIncident._id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({
+            lguStatus: "connected",
+            lguConnectedAt: new Date()
+          })
+        });
+      } else {
+        // For dispatchers, accept the incident
+        response = await fetch(`${config.PERSONAL_API}/incidents/update/${currentIncident._id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({
+            isAccepted: true,
+            dispatcher: userId
+          })
+        });
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -243,34 +299,39 @@ export default function Status() {
       const data = await response.json();
       console.log('Update response:', data);
       
-      const channelId = await getNextChannelId(currentIncident.incidentType, currentIncident._id);
-      
-      const channel = client.channel('messaging', channelId, {
-        name: `${currentIncident.incidentType} Incident #${channelId.split('-')[1]}`,
-        members: [userId]
-      });
-      
-      await channel.create();
+      if (userRole !== 'LGU') {
+        const channelId = await getNextChannelId(currentIncident.incidentType, currentIncident._id);
+        
+        const channel = client.channel('messaging', channelId, {
+          name: `${currentIncident.incidentType} Incident #${channelId.split('-')[1]}`,
+          members: [userId]
+        });
+        
+        await channel.create();
 
-      localStorage.setItem('currentIncidentId', currentIncident._id);
-      localStorage.setItem('currentChannelId', channelId);
+        localStorage.setItem('currentIncidentId', currentIncident._id);
+        localStorage.setItem('currentChannelId', channelId);
 
-      console.log('Status Component - Navigating with Incident ID:', currentIncident._id);
-      
-      navigate('/main', { 
-        state: { 
-          channelId: channelId,
-          incidentId: currentIncident._id
-        } 
-      });
+        navigate('/main', { 
+          state: { 
+            channelId: channelId,
+            incidentId: currentIncident._id
+          } 
+        });
+      }
       
       setOpenModal(false);
       setCurrentIncident(null);
       
     } catch (error) {
       console.error('Error in handleAcceptIncident:', error);
-      // You might want to show an error message to the user here
     }
+  };
+
+  // Create a user object for display
+  const user: User = {
+    id: userId,
+    name: userName,
   };
 
   return (
@@ -291,6 +352,23 @@ export default function Status() {
           }}
           alt={user.name}
           />
+          <Button
+            variant="contained"
+            onClick={handleLogout}
+            sx={{
+              position: 'absolute',
+              top: 16,
+              right: 100,
+              backgroundColor: "#ef5350",
+              color: "white",
+              marginTop: "0.5rem",
+              "&:hover": {
+                backgroundColor: "#d32f2f",
+              },
+            }}
+          >
+            Logout
+          </Button>
         <Paper elevation={3}
           sx={{ 
           padding: '0 4px 0 4px',
@@ -329,7 +407,7 @@ export default function Status() {
           </Typography>
             <div className="text-center w-full">
               <Typography variant="h4" sx={{ mb: 1, color: 'white' }}>
-                EMERGENCY DISPATCH OPERTAOR
+                EMERGENCY DISPATCH OPERATOR
               </Typography>
               <Box
               sx= {{

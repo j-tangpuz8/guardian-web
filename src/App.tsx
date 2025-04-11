@@ -9,36 +9,50 @@ import MainScreen from "./pages/MainScreen";
 import Register from "./pages/Register";
 import Calls from "./pages/Calls";
 import Status from "./pages/Status";
+import LGUStatus from "./pages/LGUStatus";
+import LGUMain from "./pages/LGUMain";
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [client, setClient] = useState<StreamChat | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    const token = localStorage.getItem('token');
+    const initializeAuth = async () => {
+      const storedUser = localStorage.getItem('user');
+      const storedToken = localStorage.getItem('token');
+      const storedChatClient = localStorage.getItem('chatClient');
 
-    console.log('Auth check:', { storedUser, token, isAuthenticated }); // Debug log
-
-    if (storedUser && token) {
-      const chatClient = new StreamChat(config.STREAM_APIKEY);
-      const user = JSON.parse(storedUser);
+      if (storedUser && storedToken && storedChatClient) {
+        try {
+          const user = JSON.parse(storedUser);
+          const chatClient = new StreamChat(config.STREAM_APIKEY);
+          
+          await chatClient.connectUser(
+            {
+              id: user._id || user.id,
+              name: user.firstName + " " + user.lastName,
+            },
+            storedToken
+          );
+          
+          setClient(chatClient);
+          setUserRole(user.role);
+          setIsAuthenticated(true);
+        } catch (error) {
+          console.error('Error connecting to Stream Chat:', error);
+          // Clear stored data if connection fails
+          localStorage.removeItem('user');
+          localStorage.removeItem('token');
+          localStorage.removeItem('chatClient');
+        }
+      }
       
-      chatClient.connectUser(
-        {
-          id: user.id,
-          name: user.name || "Jolony Tangpuy",
-        },
-        token
-      ).then(() => {
-        setClient(chatClient);
-        setIsAuthenticated(true);
-        setIsLoading(false);
-      });
-    } else {
       setIsLoading(false);
-    }
+    };
+
+    initializeAuth();
 
     return () => {
       if (client) {
@@ -46,8 +60,6 @@ function App() {
       }
     };
   }, []);
-
-  console.log('Current auth state:', isAuthenticated);
 
   if (isLoading) {
     return null; 
@@ -58,19 +70,31 @@ function App() {
       {client ? (
         <Chat client={client}>
           <Routes>
-            <Route path="/" element={isAuthenticated ? <Navigate to="/status" /> : <Login />} />
+            <Route 
+              path="/" 
+              element={
+                isAuthenticated 
+                  ? (userRole === 'LGU' 
+                      ? <Navigate to="/lgu-status" replace /> 
+                      : <Navigate to="/status" replace />)
+                  : <Login />
+              } 
+            />
             <Route path="/standby" element={<StandBy />} />
-            <Route path="/main" element={isAuthenticated ? <MainScreen /> : <Navigate to="/" />} />
+            <Route path="/main" element={isAuthenticated ? <MainScreen /> : <Navigate to="/" replace />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/call" element={isAuthenticated ? <Calls /> : <Navigate to="/" />} />
-            <Route path="/status" element={isAuthenticated ? <Status /> : <Navigate to="/" />} />
+            <Route path="/call" element={isAuthenticated ? <Calls /> : <Navigate to="/" replace />} />
+            <Route path="/status" element={isAuthenticated ? <Status /> : <Navigate to="/" replace />} />
+            <Route path="/lgu-status" element={isAuthenticated ? <LGUStatus /> : <Navigate to="/" replace />} />
+            <Route path="/lgu-main" element={<LGUMain />} />
           </Routes>
         </Chat>
       ) : (
         <Routes>
+          
           <Route path="/" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="*" element={<Navigate to="/" />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       )}
     </main>

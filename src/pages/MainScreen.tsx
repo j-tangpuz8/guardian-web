@@ -113,6 +113,12 @@ const MainScreen = () => {
 
   const [modalIncidentDescription, setModalIncidentDescription] = useState<string>("");
 
+  const [connectingModalOpen, setConnectingModalOpen] = useState(false);
+
+  const [connectingLguName, setConnectingLguName] = useState<{ firstName: string; lastName: string } | null>(null);
+
+  const [lguConnectingAt, setLguConnectingAt] = useState<Date | null>(null);
+
   const handleTemplateSelect = (template: string) => {
     setSelectedTemplate(template);
   };
@@ -473,6 +479,13 @@ const MainScreen = () => {
     return () => clearInterval(interval);
   }, [acceptedAt]);
 
+  useEffect(() => {
+    if (lguConnectingAt === null) {
+      setConnectingModalOpen(false);
+      setConnectingLguName(null);
+    }
+  }, [lguConnectingAt]);
+
   // Function to format laps time
   const formatLapsTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -506,6 +519,10 @@ const MainScreen = () => {
         return;
       }
 
+      const connectingTime = new Date();
+      setLguConnectingAt(connectingTime);
+      setConnectingLguName({ firstName: lguUser.firstName, lastName: lguUser.lastName });
+      setConnectingModalOpen(true);
 
       const response = await fetch(`${config.PERSONAL_API}/incidents/update/${id}`, {
         method: 'PUT',
@@ -515,13 +532,15 @@ const MainScreen = () => {
         },
         body: JSON.stringify({
           lgu: lguUser._id,
+          lguStatus: "connecting",
+          lguConnectingAt: connectingTime,
           incidentDetails: {
             coordinates: {
-              lat: coordinates.lat, 
+              lat: coordinates.lat,
               lon: coordinates.long
             },
             incident: modalIncident || "Vehicular Collision",
-            incidentDescription: modalIncidentDescription
+            incidentDescription: modalIncidentDescription || "No description provided"
           }
         })
       });
@@ -530,7 +549,7 @@ const MainScreen = () => {
         const responseData = await response.json();
         console.log("Update response:", responseData);
         setSelectedLgu(lguUser);
-        handleCloseModal();
+        // Don't close the LGU selection modal here
       } else {
         console.error('Failed to update incident with LGU');
         const errorData = await response.json();
@@ -540,6 +559,85 @@ const MainScreen = () => {
       console.error('Error updating incident:', error);
     }
   };
+
+  useEffect(() => {
+    const checkLguStatus = async () => {
+      if (lguConnectingAt) {
+        const now = new Date();
+        const timeDiff = (now.getTime() - lguConnectingAt.getTime()) / 1000; // Convert to seconds
+        
+        // First check if the incident has been accepted (status is connected) or declined (status is idle)
+        try {
+          const id = incident?._id || incidentId;
+          if (!id) return;
+
+          const response = await fetch(`${config.PERSONAL_API}/incidents/${id}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+
+          if (response.ok) {
+            const incidentData = await response.json();
+            
+            // If status is connected, close both modals
+            if (incidentData.lguStatus === 'connected') {
+              setLguConnectingAt(null);
+              setConnectingModalOpen(false);
+              setConnectingLguName(null);
+              setOpenModal(false); // Close the LGU selection modal
+              return;
+            }
+            
+            // If status is idle, close the connecting modal but keep LGU selection modal open
+            if (incidentData.lguStatus === 'idle') {
+              setLguConnectingAt(null);
+              setConnectingModalOpen(false);
+              setConnectingLguName(null);
+              setSelectedLgu(null);
+              return;
+            }
+          }
+        } catch (error) {
+          console.error('Error checking incident status:', error);
+        }
+
+        // If not connected and time exceeds 15 seconds, revert to idle
+        if (timeDiff > 15) {
+          const id = incident?._id || incidentId;
+          if (!id) return;
+
+          try {
+            const response = await fetch(`${config.PERSONAL_API}/incidents/update/${id}`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                lguStatus: "idle",
+                lgu: null
+              })
+            });
+
+            if (response.ok) {
+              console.log("LGU status reverted to idle after timeout");
+              setLguConnectingAt(null);
+              setConnectingModalOpen(false);
+              setConnectingLguName(null);
+              setSelectedLgu(null);
+            }
+          } catch (error) {
+            console.error('Error reverting LGU status:', error);
+          }
+        }
+      }
+    };
+
+    const interval = setInterval(checkLguStatus, 1000);
+    return () => clearInterval(interval);
+  }, [lguConnectingAt, incident, incidentId, token]);
+
 
   if (!user) {
     return <Navigate to="/" replace />;
@@ -554,6 +652,7 @@ const MainScreen = () => {
 
   const { icon } = getIncidentIcon(incidentType || 'general');
 
+  
 
   return (
     <div className="min-h-screen bg-[#1B4965]">
@@ -663,7 +762,7 @@ const MainScreen = () => {
                         }}
                       />
                       <VideoCallIcon
-                        onClick={() => navigate("/call")}
+                        onClick={handleCreateRingCall}
                         sx={{
                           fontSize: "3rem",
                           border: "solid white 1px",
@@ -689,21 +788,6 @@ const MainScreen = () => {
                           },
                         }}
                       />
-                      <Button
-                        onClick={handleCreateRingCall}
-                        variant="contained"
-                        disabled={isRinging}
-                        sx={{
-                          backgroundColor: isRinging ? "gray" : "green",
-                          height: "3rem",
-                          marginLeft: "0.5rem",
-                          "&:hover": {
-                            backgroundColor: isRinging ? "gray" : "darkgreen",
-                          },
-                        }}
-                      >
-                        {isRinging ? "Calling..." : "Ring Call"}
-                      </Button>
                       <Button
     variant="contained"
     onClick={handleLogout}
@@ -1169,10 +1253,82 @@ const MainScreen = () => {
 
 
       </Modal>
-  
-    
-    
+      
+      <Modal
+        open={connectingModalOpen}
+        onClose={() => {}} 
+        aria-labelledby="connecting-modal"
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: '100%',
+          bgcolor: 'transparent',  
+          backdropFilter: 'none',  
+          boxShadow: 'none',       
+          '& .MuiBackdrop-root': {
+            backgroundColor: 'transparent',
+            opacity: 0            
+          }
+        }}
+      >
+        <div style={{
+          backgroundColor: "rgba(220, 53, 69, 0.4)",
+          width: '100%',
+          height: 'fit-content',
+          borderTop: '1px solid white',
+          borderBottom: '1px solid white',
+        }}
+        >
+        <Paper 
+          elevation={3} 
+          sx={{ 
+            width: '550px',
+            margin: '0 auto',
+            overflow: 'hidden',
+            padding: 0
+          }}
+        >
+          <div style={{ 
+            backgroundColor: "#1e4976", 
+            padding: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <div>
+              <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>
+                CONNECTING...
+              </Typography>
+            </div>
+          </div>
+          <div style={{ 
+            backgroundColor: "#ffffff", 
+            padding: '14px 40px 14px 40px', 
+            display: 'flex', 
+            justifyContent: 'center',
+            alignItems: 'center'
+          }}>
+              {connectingLguName && (
+                <Typography variant="h6" sx={{ color: 'black', fontWeight: 'bold', mb: 3 }}>
+                  {connectingLguName.firstName} {connectingLguName.lastName} Command Center
+                </Typography>
+              )}
+          </div>
+          <div style={{ 
+            backgroundColor: "#1e4976", 
+            padding: '24px', 
+            display: 'flex', 
+            justifyContent: 'center',
+            gap: '16px'
+          }}>
+          </div>
+        </Paper>
 
+        </div>
+        
+      </Modal>
+  
     </div>
   );
 };
@@ -1201,48 +1357,48 @@ const VideoCallHandler = () => {
   );
 };
 
-const CallStateHandler = ({ 
-  call, 
-  onCallAccepted 
-}: { 
-  call: Call; 
-  onCallAccepted: () => void; 
-}) => {
-  const { useCallCallingState } = useCallStateHooks();
-  const callingState = useCallCallingState();
+// const CallStateHandler = ({ 
+//   call, 
+//   onCallAccepted 
+// }: { 
+//   call: Call; 
+//   onCallAccepted: () => void; 
+// }) => {
+//   const { useCallCallingState } = useCallStateHooks();
+//   const callingState = useCallCallingState();
   
-  console.log(`Call ${call.cid} state:`, callingState);
+//   console.log(`Call ${call.cid} state:`, callingState);
   
-  useEffect(() => {
-    console.log(`Call state changed to: ${callingState}`);
+//   useEffect(() => {
+//     console.log(`Call state changed to: ${callingState}`);
     
-    if (callingState === CallingState.JOINED) {
-      console.log("Call joined, triggering accepted callback");
-      onCallAccepted();
-    }
-  }, [callingState, onCallAccepted]);
+//     if (callingState === CallingState.JOINED) {
+//       console.log("Call joined, triggering accepted callback");
+//       onCallAccepted();
+//     }
+//   }, [callingState, onCallAccepted]);
   
-  if (callingState === CallingState.RINGING) {
-    console.log("Rendering RingingCall UI");
-    return (
-      <div style={{ 
-        position: 'fixed', 
-        top: 0, 
-        left: 0, 
-        right: 0, 
-        bottom: 0, 
-        zIndex: 9999,
-        backgroundColor: 'rgba(0,0,0,0.7)',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center'
-      }}>
-        <RingingCall includeSelf={true} totalMembersToShow={4} />
-      </div>
-    );
-  }
+//   if (callingState === CallingState.RINGING) {
+//     console.log("Rendering RingingCall UI");
+//     return (
+//       <div style={{ 
+//         position: 'fixed', 
+//         top: 0, 
+//         left: 0, 
+//         right: 0, 
+//         bottom: 0, 
+//         zIndex: 9999,
+//         backgroundColor: 'rgba(0,0,0,0.7)',
+//         display: 'flex',
+//         justifyContent: 'center',
+//         alignItems: 'center'
+//       }}>
+//         <RingingCall includeSelf={true} totalMembersToShow={4} />
+//       </div>
+//     );
+//   }
   
-  return null;
-};
+//   return null;
+// };
 
 export default MainScreen;
