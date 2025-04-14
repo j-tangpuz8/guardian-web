@@ -13,6 +13,7 @@ import fireSound from '../assets/sounds/fire.mp3';
 import ambulanceSound from '../assets/sounds/ambulance.mp3';
 import generalSound from '../assets/sounds/general.mp3';
 import config from "../config";
+import { getAddressFromCoordinates } from '../utils/geocoding';
 
 interface Incident {
   _id: string;
@@ -29,6 +30,12 @@ interface Incident {
   channelId?: string;
   lgu?: string;
   lguStatus?: string;
+  incidentDetails?: {
+    coordinates?: {
+      lat: number;
+      lon: number;
+    };
+  };
 }
 
 export default function Status() {
@@ -44,6 +51,7 @@ export default function Status() {
   const [currentIncident, setCurrentIncident] = useState<Incident | null>(null);
   const [lastCheck, setLastCheck] = useState(Date.now());
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [address, setAddress] = useState<string>('');
   
   // Safe access to user data
   const userId = userData?.id;
@@ -130,6 +138,15 @@ export default function Status() {
         }
         
         if (relevantIncident && (!currentIncident || currentIncident._id !== relevantIncident._id)) {
+          // Get address from coordinates if available
+          if (relevantIncident.incidentDetails?.coordinates) {
+            const formattedAddress = await getAddressFromCoordinates(
+              relevantIncident.incidentDetails.coordinates.lat,
+              relevantIncident.incidentDetails.coordinates.lon
+            );
+            setAddress(formattedAddress);
+          }
+
           setCurrentIncident(relevantIncident);
           setOpenModal(true);
           setLastCheck(Date.now());
@@ -309,10 +326,10 @@ export default function Status() {
         
         await channel.create();
 
-        const initialMessage = `Your report ${currentIncident.incidentType} Call was received with a location at Casuntingan Mandaue, can you verify the location, by giving us a landmark around you?`;
+        // const initialMessage = `Your report ${currentIncident.incidentType} Call was received with a location at ${address || "Loading address..."}, can you verify the location, by giving us a landmark around you?`;
 
         await channel.sendMessage({
-          text: initialMessage,
+          // text: initialMessage,
           user_id: userId
         });
 
@@ -500,7 +517,7 @@ export default function Status() {
                       {currentIncident.incidentType.toUpperCase()} INCIDENT
                     </Typography>
                     <Typography variant="body1" sx={{ color: 'white' }}>
-                      "A. S. Fortuna St, Mandaue City"
+                      {address || "Loading address..."}
                     </Typography>
                   </div>
                 </div>
@@ -516,7 +533,7 @@ export default function Status() {
                       {currentIncident.user.firstName.toUpperCase()} {currentIncident.user.lastName.toUpperCase()}
                     </Typography>
                     <Typography variant="h6" sx={{ color: 'white' }}>
-                      "A. S. Fortuna St, Mandaue City"
+                      {address || "Loading address..."}
                     </Typography>
                   </div>
                   <Avatar 

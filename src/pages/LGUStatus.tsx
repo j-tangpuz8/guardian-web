@@ -3,6 +3,8 @@ import { Modal, Paper, Typography, Button, Box, Avatar } from '@mui/material';
 import config from '../config';
 import avatarImg from "../assets/images/avatar.jpg";
 import { useChatContext } from 'stream-chat-react';
+import { useNavigate } from 'react-router-dom';
+import { getAddressFromCoordinates } from '../utils/geocoding';
 
 interface Incident {
   _id: string;
@@ -17,9 +19,11 @@ interface Incident {
   };
   lgu: string;
   lguStatus: string;
+  channelId?: string;
 }
 
 const LGUStatus = () => {
+  const navigate = useNavigate();
   const { client } = useChatContext();
   const [connectingIncident, setConnectingIncident] = useState<Incident | null>(null);
   const [isInvisible, setIsInvisible] = useState(true);
@@ -27,6 +31,7 @@ const LGUStatus = () => {
   const token = localStorage.getItem('token');
   const userStr = localStorage.getItem('user');
   const user = userStr ? JSON.parse(userStr) : null;
+  const [address, setAddress] = useState<string>('');
   const lguId = user?.id;
 
   const toggleStatus = async () => {
@@ -58,10 +63,20 @@ const LGUStatus = () => {
           if (connectingIncident) {
             setConnectingIncident(connectingIncident);
             setOpenModal(true);
+            
+            // Get address from coordinates
+            if (connectingIncident.incidentDetails.coordinates.lat && connectingIncident.incidentDetails.coordinates.lon) {
+              const formattedAddress = await getAddressFromCoordinates(
+                connectingIncident.incidentDetails.coordinates.lat.toString(),
+                connectingIncident.incidentDetails.coordinates.lon.toString()
+              );
+              setAddress(formattedAddress);
+            }
           } else if (connectingIncident && connectingIncident.lguStatus === 'idle') {
             // Close modal if status changes to idle
             setConnectingIncident(null);
             setOpenModal(false);
+            setAddress('');
           }
         }
       } catch (error) {
@@ -73,10 +88,22 @@ const LGUStatus = () => {
     return () => clearInterval(interval);
   }, [lguId, token, isInvisible]); // Add isInvisible to dependencies
 
+  const getNextChannelId = async (incidentType: string, incidentId: string) => {
+    try {
+        const data = incidentId.substring(5,9);
+        return `${incidentType.toLowerCase()}-${data}`;
+    } catch (error) {
+        console.error('Error generating channel ID:', error);
+        return `${incidentType.toLowerCase()}-error`;
+    }
+  };
+
   const handleAccept = async () => {
     if (!connectingIncident) return;
 
     try {
+      const channelId = await getNextChannelId(connectingIncident.incidentType, connectingIncident._id);
+      
       const response = await fetch(`${config.PERSONAL_API}/incidents/update/${connectingIncident._id}`, {
         method: 'PUT',
         headers: {
@@ -86,13 +113,27 @@ const LGUStatus = () => {
         body: JSON.stringify({
           lguStatus: 'connected',
           lguConnectedAt: new Date(),
-          lgu: lguId
+          lgu: lguId,
+          channelId: channelId
         })
       });
 
       if (response.ok) {
+        // Store incident data in localStorage
+        localStorage.setItem('currentIncidentId', connectingIncident._id);
+        localStorage.setItem('currentChannelId', channelId);
+
         setConnectingIncident(null);
         setOpenModal(false);
+
+        // Navigate to LGUMain
+        navigate('/lgu-main', {
+          state: {
+            incident: connectingIncident,
+            incidentId: connectingIncident._id,
+            channelId: channelId
+          }
+        });
       }
     } catch (error) {
       console.error('Error accepting incident:', error);
@@ -221,209 +262,113 @@ const LGUStatus = () => {
           justifyContent: 'center',
         }}
       >
-        {/* <Paper 
+        <Paper 
           elevation={3} 
+          className="shake_me"
           sx={{ 
             width: '550px',
             margin: '0 auto',
+            borderRadius: '20px',
             overflow: 'hidden',
-            padding: 0
+            padding: 0,
+            border: `1px solid white`,
           }}
         >
           <div style={{ 
-            backgroundColor: "#1e4976", 
+            backgroundColor: "#1B4965", 
+            padding: '24px',
+            display: 'flex',
+            height: "50px",
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+          </div>
+          <div style={{ 
+            backgroundColor: "#F27572", 
             padding: '12px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
           }}>
-            <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>
-              NEW INCIDENT ASSIGNMENT
-            </Typography>
+            
+              <div>
+              <Typography variant="h4" sx={{ color: 'white', fontWeight: 'bold' }}>
+                NEW INCIDENT
+              </Typography>
+            </div>
           </div>
           <div style={{ 
-            backgroundColor: "#ffffff", 
-            padding: '20px 40px', 
+            backgroundColor: "#4a7ab8", 
+            padding: '14px 40px 14px 40px', 
             display: 'flex', 
-            flexDirection: 'column',
-            gap: '16px'
+            justifyContent: 'start',
+            alignItems: 'center',
+            gap: '1rem'
           }}>
-            {connectingIncident && (
-              <>
-                <Typography variant="h6" sx={{ color: 'black', fontWeight: 'bold' }}>
-                  Type: {connectingIncident.incidentType}
-                </Typography>
-                <Typography variant="body1" sx={{ color: 'black' }}>
-                  Description: {connectingIncident.incidentDetails.incidentDescription}
-                </Typography>
-                <Typography variant="body1" sx={{ color: 'black' }}>
-                  Location: {connectingIncident.incidentDetails.coordinates.lat}, {connectingIncident.incidentDetails.coordinates.lon}
-                </Typography>
-              </>
-            )}
+              <Avatar 
+              src={avatarImg}
+              sx={{ width: 96, height: 96 }}
+              alt={avatarImg}
+            />
+            <div
+            style={{ 
+              // backgroundColor: "#4a7ab8", 
+              // padding: '14px 40px 14px 40px', 
+              display: 'flex', 
+              flexDirection: 'column',
+              // justifyContent: 'start',
+              alignItems: 'center',
+              // gap: '1rem'
+            }}>
+              {connectingIncident && (
+                <>
+                  <Typography sx={{ color: 'white', fontWeight: 'bold', fontSize: '30px', textTransform: 'uppercase' }}>
+                  {connectingIncident.incidentType}
+                  </Typography>
+                  <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold', textTransform: 'uppercase' }}>
+                  {connectingIncident.incidentDetails.incident}
+                  </Typography>
+                  <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold' }}>
+                  {address || 'Loading address...'}
+                  </Typography>
+                </>
+              )}
+            </div>
+            
           </div>
           <div style={{ 
-            backgroundColor: "#1e4976", 
+            backgroundColor: "#1B4965", 
             padding: '24px', 
             display: 'flex', 
             justifyContent: 'center',
             gap: '16px'
           }}>
             <Button
-              variant="contained"
-              onClick={handleAccept}
-              sx={{
-                backgroundColor: '#4caf50',
-                '&:hover': {
-                  backgroundColor: '#388e3c',
-                },
-              }}
-            >
-              Accept
-            </Button>
-            <Button
-              variant="contained"
-              onClick={handleDecline}
-              sx={{
-                backgroundColor: '#f44336',
-                '&:hover': {
-                  backgroundColor: '#d32f2f',
-                },
-              }}
-            >
-              Decline
-            </Button>
+            variant="contained"
+            onClick={handleAccept}
+            sx={{
+              backgroundColor: '#4caf50',
+              '&:hover': {
+                backgroundColor: '#388e3c',
+              },
+            }}
+          >
+            Accept
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleDecline}
+            sx={{
+              backgroundColor: '#f44336',
+              '&:hover': {
+                backgroundColor: '#d32f2f',
+              },
+            }}
+          >
+            Decline
+          </Button>
           </div>
-        </Paper> */}
-
-<Paper 
-                elevation={3} 
-                className="shake_me"
-                sx={{ 
-                  width: '550px',
-                  margin: '0 auto',
-                  borderRadius: '20px',
-                  overflow: 'hidden',
-                  padding: 0,
-                  border: `1px solid white`,
-                }}
-              >
-                <div style={{ 
-                  backgroundColor: "#1B4965", 
-                  padding: '24px',
-                  display: 'flex',
-                  height: "50px",
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                </div>
-                <div style={{ 
-                  backgroundColor: "#F27572", 
-                  padding: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  
-                    <div>
-                    <Typography variant="h4" sx={{ color: 'white', fontWeight: 'bold' }}>
-                      NEW INCIDENT
-                    </Typography>
-                  </div>
-                </div>
-                <div style={{ 
-                  backgroundColor: "#4a7ab8", 
-                  padding: '14px 40px 14px 40px', 
-                  display: 'flex', 
-                  justifyContent: 'start',
-                  alignItems: 'center',
-                  gap: '1rem'
-                }}>
-                    <Avatar 
-                    src={avatarImg}
-                    sx={{ width: 96, height: 96 }}
-                    alt={avatarImg}
-                  />
-                  <div
-                  style={{ 
-                    // backgroundColor: "#4a7ab8", 
-                    // padding: '14px 40px 14px 40px', 
-                    display: 'flex', 
-                    flexDirection: 'column',
-                    // justifyContent: 'start',
-                    alignItems: 'center',
-                    // gap: '1rem'
-                  }}>
-                    {connectingIncident && (
-                      <>
-                        <Typography sx={{ color: 'white', fontWeight: 'bold', fontSize: '30px', textTransform: 'uppercase' }}>
-                        {connectingIncident.incidentType}
-                        </Typography>
-                        <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold', textTransform: 'uppercase' }}>
-                        {connectingIncident.incidentDetails.incident}
-                        </Typography>
-                        <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold' }}>
-                        {connectingIncident.incidentDetails.coordinates.lat}, {connectingIncident.incidentDetails.coordinates.lon}
-                        </Typography>
-                      </>
-                    )}
-                  </div>
-                  
-                </div>
-                <div style={{ 
-                  backgroundColor: "#1B4965", 
-                  padding: '24px', 
-                  display: 'flex', 
-                  justifyContent: 'center',
-                  gap: '16px'
-                }}>
-                  {/* <Button 
-                    variant="contained" 
-                    // onClick={handleAcceptIncident}
-                    sx={{ 
-                      backgroundColor: '#6ad37a',
-                      color: 'white',
-                      padding: '5px 24px',
-                      width: '40%',
-                      fontSize: '18px',
-                      fontWeight: 'bold',
-                      '&:hover': {
-                        backgroundColor: '#5bc26b'
-                      },
-                      '&:disabled': {
-                        backgroundColor: '#97d8a1',
-                        color: '#e0e0e0'
-                      }
-                    }}
-                  >
-                    RESPOND
-                  </Button> */}
-                  <Button
-              variant="contained"
-              onClick={handleAccept}
-              sx={{
-                backgroundColor: '#4caf50',
-                '&:hover': {
-                  backgroundColor: '#388e3c',
-                },
-              }}
-            >
-              Accept
-            </Button>
-            <Button
-              variant="contained"
-              onClick={handleDecline}
-              sx={{
-                backgroundColor: '#f44336',
-                '&:hover': {
-                  backgroundColor: '#d32f2f',
-                },
-              }}
-            >
-              Decline
-            </Button>
-                </div>
-              </Paper>
+        </Paper>
       </Modal>
     </div>
   );

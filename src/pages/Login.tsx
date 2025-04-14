@@ -49,7 +49,8 @@ const Login = () => {
       // Store user data and token
       localStorage.setItem("user", JSON.stringify({
         ...user,
-        id: user._id // Add id field for compatibility
+        id: user.id, // Add id field for compatibility
+        role: response.data.role  // Make sure to store the role from response.data
       }));
       localStorage.setItem("token", token);
 
@@ -59,7 +60,7 @@ const Login = () => {
       // Connect user to Stream Chat
       await chatClient.connectUser(
         {
-          id: user._id,
+          id: user.id,
           name: user.firstName + " " + user.lastName,
         },
         token
@@ -67,12 +68,12 @@ const Login = () => {
 
       // Store chat client
       localStorage.setItem("chatClient", JSON.stringify({
-        id: user._id,
+        id: user.id,
         token: token
       }));
 
       // Check user role and navigate accordingly
-      const userRole = (user.role || 'default').toLowerCase();
+      const userRole = response.data.role.toLowerCase();  // Get role directly from response.data
       console.log('User role:', userRole);
       
       if (userRole === 'lgu') {

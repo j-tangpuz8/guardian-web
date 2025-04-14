@@ -50,12 +50,33 @@ import medicalIcon from '../assets/images/Medical.png';
 import generalIcon from '../assets/images/General.png';
 import fireIcon from '../assets/images/Fire.png';
 import crimeIcon from '../assets/images/Police.png';
+import { getAddressFromCoordinates } from '../utils/geocoding';
+import { generateMapUrl } from '../utils/maps';
+import MapView from '../components/MapView';
 
 type User = {
   id: string;
   email: string;
   name: string;
 };
+
+interface Incident {
+  _id: string;
+  incidentType: string;
+  isVerified: boolean;
+  isResolved: boolean;
+  isAccepted: boolean;
+  responderCoordinates?: {
+    lat: number;
+    lon: number;
+  };
+  incidentDetails?: {
+    coordinates?: {
+      lat: number;
+      lon: number;
+    };
+  };
+}
 
 const MainScreen = () => {
   const location = useLocation();
@@ -93,7 +114,7 @@ const MainScreen = () => {
 
   const [incidentType, setIncidentType] = useState<string | null>(null);
 
-  const [coordinates, setcoordinates] = useState({lat: "", long: ""});
+  const [coordinates, setcoordinates] = useState<{ lat: string; long: string }>({ lat: "", long: "" });
 
   const [volunteerID, setVolunteerID] = useState<string>("");
 
@@ -118,6 +139,18 @@ const MainScreen = () => {
   const [connectingLguName, setConnectingLguName] = useState<{ firstName: string; lastName: string } | null>(null);
 
   const [lguConnectingAt, setLguConnectingAt] = useState<Date | null>(null);
+
+  const [address, setAddress] = useState<string>('');
+
+  const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+  const [currentAddress, setCurrentAddress] = useState<string>('');
+
+  const [mapModalOpen, setMapModalOpen] = useState(false);
+
+  const [showMap, setShowMap] = useState(false);
+
+  const [responderCoordinates, setResponderCoordinates] = useState<{lat: number; lon: number} | null>(null);
 
   const handleTemplateSelect = (template: string) => {
     setSelectedTemplate(template);
@@ -445,13 +478,29 @@ const MainScreen = () => {
       
       if (id) {
         try {
-          const response = await fetch(`/api/incidents/${id}`);
+          const response = await fetch(`${config.PERSONAL_API}/incidents/${id}`);
           if (response.ok) {
             const data = await response.json();
+            console.log('Fetched incident data:', data);
+            console.log('Responder coordinates:', data.responderCoordinates);
+            
             setIsResolved(data.isResolved);
             setAcceptedAt(data.acceptedAt);
             setIsVerified(data.isVerified);
-            setcoordinates({lat: data.incidentDetails.coordinates.lat, long: data.incidentDetails.coordinates.lon});
+            setcoordinates({
+              lat: data.incidentDetails.coordinates.lat.toString(),
+              long: data.incidentDetails.coordinates.lon.toString()
+            });
+            setResponderCoordinates(data.responderCoordinates || null);
+            
+            // Get address from coordinates
+            if (data.incidentDetails.coordinates.lat && data.incidentDetails.coordinates.lon) {
+              const formattedAddress = await getAddressFromCoordinates(
+                data.incidentDetails.coordinates.lat.toString(),
+                data.incidentDetails.coordinates.lon.toString()
+              );
+              setAddress(formattedAddress);
+            }
           } else {
             console.error('Failed to fetch incident data');
           }
@@ -638,6 +687,46 @@ const MainScreen = () => {
     return () => clearInterval(interval);
   }, [lguConnectingAt, incident, incidentId, token]);
 
+  useEffect(() => {
+    // Get current location
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          setCurrentLocation({ lat: latitude, lng: longitude });
+          
+          // Get address from current location
+          const formattedAddress = await getAddressFromCoordinates(
+            latitude.toString(),
+            longitude.toString()
+          );
+          setCurrentAddress(formattedAddress);
+        },
+        (error) => {
+          console.error('Error getting location:', error);
+          setCurrentAddress('Location access denied');
+        }
+      );
+    } else {
+      setCurrentAddress('Geolocation not supported');
+    }
+  }, []);
+
+  const handleLocationClick = () => {
+    if (coordinates.lat && coordinates.long && responderCoordinates) {
+      const mapUrl = generateMapUrl(
+        responderCoordinates.lat,
+        responderCoordinates.lon,
+        coordinates.lat,
+        coordinates.long
+      );
+      
+      // Open map in a new window
+      window.open(mapUrl, '_blank', 'width="100%",height="100%"');
+    } else {
+      console.error('Responder coordinates not available');
+    }
+  };
 
   if (!user) {
     return <Navigate to="/" replace />;
@@ -656,9 +745,12 @@ const MainScreen = () => {
 
   return (
     <div className="min-h-screen bg-[#1B4965]">
+    {/* // <div className="h-screen max-h-screen bg-[#1B4965] overflow-hidden"> */}
       <Container maxWidth="xl" sx={{height: "100%"}}>
         <Grid container spacing={1}>
-          <Grid size={{xs: 12}} padding={"2rem"}>
+          <Grid size={{xs: 12}} padding={"0.7rem"} 
+          // backgroundColor={"red"} 
+          height={"20vh"}>
             <Grid container spacing={8}>
               <Grid
                 size={{md: 4}}
@@ -684,8 +776,11 @@ const MainScreen = () => {
                   <Typography sx={{fontWeight: "bold"}}>
                     {incidentType ? incidentType.toUpperCase() : ""}
                   </Typography>
+                  {/* <Typography sx={{fontWeight: "bold"}}>
+                    {coordinates ? coordinates.lat + " " + coordinates.long : ""}
+                  </Typography> */}
                   <Typography sx={{fontWeight: "bold"}}>
-                    {coordinates ? coordinates.lat + " " + coordinates.long: ""}
+                    {address || "Loading address..."}
                   </Typography>
                   
                 </div>
@@ -712,6 +807,9 @@ const MainScreen = () => {
                     <Typography sx={{ fontWeight: "bold" }}>
                       Angel Rank
                     </Typography>
+                    {/* <Typography sx={{ fontWeight: "bold" }}>
+                      Current Location: {currentAddress || "Loading location..."}
+                    </Typography> */}
                   </div>
                 )}
                 </div>
@@ -749,6 +847,7 @@ const MainScreen = () => {
                         onClick={handleOpenModal}
                       />
                       <MyLocationIcon
+                        onClick={handleLocationClick}
                         sx={{
                           fontSize: "3rem",
                           border: "solid white 1px",
@@ -788,7 +887,7 @@ const MainScreen = () => {
                           },
                         }}
                       />
-                      <Button
+                      {/* <Button
     variant="contained"
     onClick={handleLogout}
     sx={{
@@ -801,7 +900,7 @@ const MainScreen = () => {
     }}
   >
     Logout
-  </Button>
+  </Button> */}
                     </div>
                     <AccountCircleIcon
                       sx={{
@@ -840,10 +939,12 @@ const MainScreen = () => {
           </Grid>
           <Grid
             size={{xs: 12}}
+            // backgroundColor={"green"}
+            height={"70vh"}
             sx={{border: "12px solid skyblue", borderRadius: "16px"}}>
             <div
               style={{
-                height: "540px",
+                height: "100%",
                 display: "flex",
                 gap: "8px",
                 backgroundColor: "skyblue",
@@ -941,8 +1042,9 @@ const MainScreen = () => {
           </Grid>
 
         <Grid container size={{xs: 12}}
-        marginBottom={"10px"}
+        marginBottom={"0px"}
         paddingLeft={"20px"}
+        height={"6vh"}
         sx={{ 
           // backgroundColor: 'red',
         }}>
