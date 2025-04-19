@@ -11,6 +11,8 @@ import Calls from "./pages/Calls";
 import Status from "./pages/Status";
 import LGUStatus from "./pages/LGUStatus";
 import LGUMain from "./pages/LGUMain";
+import MapView from "./pages/MapView";
+import ResponderMap from "./pages/ResponderMap";
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -81,12 +83,14 @@ function App() {
               } 
             />
             <Route path="/standby" element={<StandBy />} />
-            <Route path="/main" element={isAuthenticated ? <MainScreen /> : <Navigate to="/" replace />} />
+            <Route path="/main/:incidentId" element={isAuthenticated ? <MainScreen /> : <Navigate to="/" replace />} />
             <Route path="/register" element={<Register />} />
             <Route path="/call" element={isAuthenticated ? <Calls /> : <Navigate to="/" replace />} />
             <Route path="/status" element={isAuthenticated ? <Status /> : <Navigate to="/" replace />} />
             <Route path="/lgu-status" element={isAuthenticated ? <LGUStatus /> : <Navigate to="/" replace />} />
-            <Route path="/lgu-main" element={<LGUMain />} />
+            <Route path="/lgu-main/:incidentId" element={isAuthenticated ? <LGUMain /> : <Navigate to="/" replace />} />
+            <Route path="/map" element={isAuthenticated ? <MapView /> : <Navigate to="/" replace />} />
+            <Route path="/responder-map" element={isAuthenticated ? <ResponderMap /> : <Navigate to="/" replace />} />
           </Routes>
         </Chat>
       ) : (

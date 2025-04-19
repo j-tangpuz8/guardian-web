@@ -326,20 +326,19 @@ export default function Status() {
         
         await channel.create();
 
-        // const initialMessage = `Your report ${currentIncident.incidentType} Call was received with a location at ${address || "Loading address..."}, can you verify the location, by giving us a landmark around you?`;
+        const initialMessage = `Your report ${currentIncident.incidentType} Call was received with a location at ${address || "Loading address..."}, can you verify the location, by giving us a landmark around you?`;
 
         await channel.sendMessage({
-          // text: initialMessage,
+          text: initialMessage,
           user_id: userId
         });
 
         localStorage.setItem('currentIncidentId', currentIncident._id);
         localStorage.setItem('currentChannelId', channelId);
 
-        navigate('/main', { 
+        navigate(`/main/${currentIncident._id}`, { 
           state: { 
-            channelId: channelId,
-            incidentId: currentIncident._id
+            channelId: channelId
           } 
         });
       }

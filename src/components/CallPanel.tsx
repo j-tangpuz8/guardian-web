@@ -16,7 +16,18 @@ export const CallPanel = () => {
     console.log("Call creator:", creator);
     if (callingState === CallingState.JOINED) {
       console.log("Call joined, navigating to call screen");
-      navigate('/call');
+      const width = window.screen.width;
+      const height = window.screen.height;
+      const newWindow = window.open('/call', '_blank', `width=${width},height=${height},left=0,top=0`);
+
+      // Attempt to maximize the window
+      if (newWindow) {
+      newWindow.moveTo(0, 0);
+      newWindow.resizeTo(screen.availWidth, screen.availHeight);
+
+      // For some browsers, you might need to focus first
+      newWindow.focus();
+      }
     }
   }, [callingState, navigate, creator]);
 

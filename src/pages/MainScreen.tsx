@@ -1,4 +1,4 @@
-import {Navigate, useLocation, useNavigate} from "react-router-dom";
+import {Navigate, useLocation, useNavigate, useParams} from "react-router-dom";
 import Container from "@mui/material/Container";
 import Grid from "@mui/material/Grid2";
 import {
@@ -51,8 +51,7 @@ import generalIcon from '../assets/images/General.png';
 import fireIcon from '../assets/images/Fire.png';
 import crimeIcon from '../assets/images/Police.png';
 import { getAddressFromCoordinates } from '../utils/geocoding';
-import { generateMapUrl } from '../utils/maps';
-import MapView from '../components/MapView';
+
 
 type User = {
   id: string;
@@ -80,77 +79,77 @@ interface Incident {
 
 const MainScreen = () => {
   const location = useLocation();
+  const { incidentId } = useParams();
+  const navigate = useNavigate();
   const userStr = localStorage.getItem("user");
   const userStr2 = userStr ? JSON.parse(userStr) : null;
   const userId = userStr2?.id;
-  const navigate = useNavigate();
   const token = localStorage.getItem("token");
-  const incident = location.state?.incident;
-  const incidentId = location.state?.incidentId || localStorage.getItem('currentIncidentId');
 
-  useEffect(() => {
-    if (incidentId) {
-      console.log('MainScreen Component - Received Incident ID:', incidentId);
-    } else {
-      console.log('MainScreen Component - No Incident ID received');
-    }
-  }, [incidentId]);
-  
+  const user = {
+    id: userId,
+    name: userStr2?.name || "User",
+  };
 
+  // State declarations
   const [chatClient, setChatClient] = useState<StreamChat | null>(null);
   const [videoClient, setVideoClient] = useState<StreamVideoClient | null>(null);
-
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>("");
-
   const [isRinging, setIsRinging] = useState(false);
-
-  const [currentChannelId, setCurrentChannelId] = useState<string>('fad-call');
-
-  const [isVerified, setIsVerified] = useState(incident?.isVerified || false);
-
+  const [currentChannelId, setCurrentChannelId] = useState<string>('');
+  const [isVerified, setIsVerified] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
-
   const [openModal, setOpenModal] = useState(false);
-
   const [incidentType, setIncidentType] = useState<string | null>(null);
-
   const [coordinates, setcoordinates] = useState<{ lat: string; long: string }>({ lat: "", long: "" });
-
   const [volunteerID, setVolunteerID] = useState<string>("");
-
   const [userData, setUserData] = useState<{ firstName: string; lastName: string; phone: string } | null>(null);
-
   const [isResolved, setIsResolved] = useState(false);
-
   const [acceptedAt, setAcceptedAt] = useState<string | null>(null);
-
   const [lapsTime, setLapsTime] = useState(0);
-
   const [lguUsers, setLguUsers] = useState<any[]>([]);
-
   const [selectedLgu, setSelectedLgu] = useState<any>(null);
-
   const [modalIncident, setModalIncident] = useState<string>("");
-
+  const [customIncidentType, setCustomIncidentType] = useState<string>("");
   const [modalIncidentDescription, setModalIncidentDescription] = useState<string>("");
-
   const [connectingModalOpen, setConnectingModalOpen] = useState(false);
-
   const [connectingLguName, setConnectingLguName] = useState<{ firstName: string; lastName: string } | null>(null);
-
   const [lguConnectingAt, setLguConnectingAt] = useState<Date | null>(null);
-
   const [address, setAddress] = useState<string>('');
-
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
-
   const [currentAddress, setCurrentAddress] = useState<string>('');
-
   const [mapModalOpen, setMapModalOpen] = useState(false);
-
   const [showMap, setShowMap] = useState(false);
-
   const [responderCoordinates, setResponderCoordinates] = useState<{lat: number; lon: number} | null>(null);
+
+  // Helper functions
+  const getIncidentIcon = (incidentType: string) => {
+    const type = incidentType?.toLowerCase() || '';
+
+    switch (type) {
+      case 'medical':
+      case 'Medical':
+        return {
+          icon: medicalIcon
+        };
+      case 'fire':
+      case 'Fire':
+        return {
+          icon: fireIcon
+        };
+      case 'police':
+      case 'Police':
+        return {
+          icon: crimeIcon
+        };
+      case 'general':
+      case 'General':
+      default:
+        return {
+          icon: generalIcon
+        };
+    }
+  };
 
   const handleTemplateSelect = (template: string) => {
     setSelectedTemplate(template);
@@ -175,16 +174,14 @@ const MainScreen = () => {
     setIsUpdating(true);
     
     try {
-      const id = incident?._id || incidentId;
-      
-      if (!id) {
+      if (!incidentId) {
         console.error('No incident ID available for update');
         return;
       }
+
+      console.log('Updating verification status for incident:', incidentId);
       
-      console.log('Updating verification status for incident:', id);
-      
-      const response = await fetch(`${config.PERSONAL_API}/incidents/update/${id}`, {
+      const response = await fetch(`${config.PERSONAL_API}/incidents/update/${incidentId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -209,69 +206,94 @@ const MainScreen = () => {
   };
 
   const handleCloseIncident = async () => {
-    const id = incident?._id || incidentId;
-    
-    if (!id) {
-        console.error('No incident ID available for closing');
-        return;
+    if (!incidentId) {
+      console.error('No incident ID available for closing');
+      return;
     }
     
     try {
-        const response = await fetch(`${config.PERSONAL_API}/incidents/update/${id}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                isResolved: true
-            })
-        });
+      const response = await fetch(`${config.PERSONAL_API}/incidents/update/${incidentId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          isResolved: true
+        })
+      });
 
-        if (response.ok) {
-            setIsResolved(true);
-            console.log('Incident closed successfully');
-        } else {
-            console.error('Failed to close incident');
-        }
+      if (response.ok) {
+        setIsResolved(true);
+        console.log('Incident closed successfully');
+      } else {
+        console.error('Failed to close incident');
+      }
     } catch (error) {
-        console.error('Error closing incident:', error);
+      console.error('Error closing incident:', error);
     }
   };
 
-  
+  const fetchIncidentData = async () => {
+    if (!incidentId) return;
 
-  const user = {
-    id: userId,
-    name: userStr2?.name || "User",
-  };
-
-  const getIncidentIcon = (incidentType: string) => {
-    const type = incidentType?.toLowerCase() || '';
-
-    switch (type) {
-      case 'medical':
-        return {
-          icon: medicalIcon
-        };
-      case 'fire':
-        return {
-          icon: fireIcon
+    try {
+      const response = await fetch(`${config.PERSONAL_API}/incidents/${incidentId}`);
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Fetched incident data:', data);
+        
+        setIsResolved(data.isResolved);
+        setAcceptedAt(data.acceptedAt);
+        setIsVerified(data.isVerified);
+        setIncidentType(data.incidentType);
+        setCurrentChannelId(data.channelId || `${data.incidentType.toLowerCase()}-${incidentId.substring(5,9)}`);
+        
+        if (data.incidentDetails?.coordinates) {
+          setcoordinates({
+            lat: data.incidentDetails.coordinates.lat.toString(),
+            long: data.incidentDetails.coordinates.lon.toString()
+          });
           
-        };
-      case 'police':
-        return {
-          icon: crimeIcon
-        };
-      case 'general':
-      default:
-        return {
-          icon: generalIcon
-        };
+          const formattedAddress = await getAddressFromCoordinates(
+            data.incidentDetails.coordinates.lat.toString(),
+            data.incidentDetails.coordinates.lon.toString()
+          );
+          setAddress(formattedAddress);
+        }
+
+        setResponderCoordinates(data.responderCoordinates || null);
+
+        // Fetch user data if we have user info
+        if (data.user) {
+          let userId = typeof data.user === 'string' ? data.user : data.user._id;
+          setVolunteerID(userId);
+          
+          const userResponse = await fetch(`${config.PERSONAL_API}/users/${userId}`);
+          if (userResponse.ok) {
+            const userData = await userResponse.json();
+            setUserData({
+              firstName: userData.firstName,
+              lastName: userData.lastName,
+              phone: userData.phone
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching incident data:', error);
     }
   };
 
-  
-  
+  // Effects
+  useEffect(() => {
+    if (!incidentId) {
+      console.log('MainScreen Component - No Incident ID received');
+      return;
+    }
+    
+    console.log('MainScreen Component - Received Incident ID:', incidentId);
+    fetchIncidentData();
+  }, [incidentId]);
 
   useEffect(() => {
     const initChatClient = async () => {
@@ -371,7 +393,7 @@ const MainScreen = () => {
         data: {
           members: [
             { user_id: userId },
-            { user_id: volunteerID }
+            { user_id: '67f33ddaf0bce2cde6b95f57' }
           ],
           settings_override: {
             ring: {
@@ -401,30 +423,10 @@ const MainScreen = () => {
     }
   }, []);
 
-  useEffect(() => {
-    const fetchIncidentType = async () => {
-      const storedIncidentId = localStorage.getItem('currentIncidentId');
-      if (storedIncidentId) {
-        try {
-          const response = await fetch(`/api/incidents/${storedIncidentId}`);
-          if (response.ok) {
-            const incidentData = await response.json();
-            setIncidentType(incidentData.incidentType);
-          } else {
-            console.error('Failed to fetch incident data');
-          }
-        } catch (error) {
-          console.error('Error fetching incident data:', error);
-        }
-      }
-    };
-
-    fetchIncidentType();
-  }, []);
 
   useEffect(() => {
     const fetchUserData = async () => {
-      const currentIncidentId = incident?._id || incidentId || localStorage.getItem('currentIncidentId');
+      const currentIncidentId = location.state?.incident?._id || incidentId || localStorage.getItem('currentIncidentId');
       
       if (currentIncidentId) {
         try {
@@ -469,50 +471,7 @@ const MainScreen = () => {
     };
   
     fetchUserData();
-  }, [incident, incidentId]);
-  
-
-  useEffect(() => {
-    const fetchIncidentData = async () => {
-      const id = incident?._id || incidentId || localStorage.getItem('currentIncidentId');
-      
-      if (id) {
-        try {
-          const response = await fetch(`${config.PERSONAL_API}/incidents/${id}`);
-          if (response.ok) {
-            const data = await response.json();
-            console.log('Fetched incident data:', data);
-            console.log('Responder coordinates:', data.responderCoordinates);
-            
-            setIsResolved(data.isResolved);
-            setAcceptedAt(data.acceptedAt);
-            setIsVerified(data.isVerified);
-            setcoordinates({
-              lat: data.incidentDetails.coordinates.lat.toString(),
-              long: data.incidentDetails.coordinates.lon.toString()
-            });
-            setResponderCoordinates(data.responderCoordinates || null);
-            
-            // Get address from coordinates
-            if (data.incidentDetails.coordinates.lat && data.incidentDetails.coordinates.lon) {
-              const formattedAddress = await getAddressFromCoordinates(
-                data.incidentDetails.coordinates.lat.toString(),
-                data.incidentDetails.coordinates.lon.toString()
-              );
-              setAddress(formattedAddress);
-            }
-          } else {
-            console.error('Failed to fetch incident data');
-          }
-        } catch (error) {
-          console.error('Error fetching incident data:', error);
-        }
-      }
-    };
-  
-    fetchIncidentData();
-  }, [incident, incidentId]);
-
+  }, [location.state?.incident, incidentId]);
   
 
   useEffect(() => {
@@ -562,7 +521,7 @@ const MainScreen = () => {
 
   const handleConnect = async (lguUser: any) => {
     try {
-      const id = incident?._id || incidentId;
+      const id = location.state?.incident?._id || incidentId;
       if (!id) {
         console.error('No incident ID available');
         return;
@@ -572,6 +531,9 @@ const MainScreen = () => {
       setLguConnectingAt(connectingTime);
       setConnectingLguName({ firstName: lguUser.firstName, lastName: lguUser.lastName });
       setConnectingModalOpen(true);
+
+      // Determine the incident type to send
+      const incidentTypeToSend = modalIncident === "Other" ? customIncidentType : modalIncident;
 
       const response = await fetch(`${config.PERSONAL_API}/incidents/update/${id}`, {
         method: 'PUT',
@@ -588,7 +550,7 @@ const MainScreen = () => {
               lat: coordinates.lat,
               lon: coordinates.long
             },
-            incident: modalIncident || "Vehicular Collision",
+            incident: incidentTypeToSend || "Vehicular Collision",
             incidentDescription: modalIncidentDescription || "No description provided"
           }
         })
@@ -617,10 +579,9 @@ const MainScreen = () => {
         
         // First check if the incident has been accepted (status is connected) or declined (status is idle)
         try {
-          const id = incident?._id || incidentId;
-          if (!id) return;
+          if (!incidentId) return;
 
-          const response = await fetch(`${config.PERSONAL_API}/incidents/${id}`, {
+          const response = await fetch(`${config.PERSONAL_API}/incidents/${incidentId}`, {
             headers: {
               'Authorization': `Bearer ${token}`
             }
@@ -629,12 +590,24 @@ const MainScreen = () => {
           if (response.ok) {
             const incidentData = await response.json();
             
-            // If status is connected, close both modals
+            // If status is connected, close both modals and send initial message
             if (incidentData.lguStatus === 'connected') {
+              // Generate the channel ID using the incident type and ID
+              const channelId = `${incidentData.incidentType.toLowerCase()}-${incidentId.substring(4,9)}`;
+              
+              // Send the initial message in the LGU-dispatcher channel
+              if (chatClient) {
+                const channel = chatClient.channel('messaging', channelId);
+                await channel.sendMessage({
+                  text: `Incident: ${incidentData.incidentDetails.incident || "Not specified"}\nDescription: ${incidentData.incidentDetails.incidentDescription || "No description provided"}`,
+                  user_id: userId
+                });
+              }
+
               setLguConnectingAt(null);
               setConnectingModalOpen(false);
               setConnectingLguName(null);
-              setOpenModal(false); // Close the LGU selection modal
+              setOpenModal(false);
               return;
             }
             
@@ -653,11 +626,10 @@ const MainScreen = () => {
 
         // If not connected and time exceeds 15 seconds, revert to idle
         if (timeDiff > 15) {
-          const id = incident?._id || incidentId;
-          if (!id) return;
+          if (!incidentId) return;
 
           try {
-            const response = await fetch(`${config.PERSONAL_API}/incidents/update/${id}`, {
+            const response = await fetch(`${config.PERSONAL_API}/incidents/update/${incidentId}`, {
               method: 'PUT',
               headers: {
                 'Content-Type': 'application/json',
@@ -685,17 +657,17 @@ const MainScreen = () => {
 
     const interval = setInterval(checkLguStatus, 1000);
     return () => clearInterval(interval);
-  }, [lguConnectingAt, incident, incidentId, token]);
+  }, [lguConnectingAt, incidentId, token, chatClient, userId]);
 
   useEffect(() => {
-    // Get current location
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude, longitude } = position.coords;
           setCurrentLocation({ lat: latitude, lng: longitude });
           
-          // Get address from current location
+          console.log(`Current coordinates - Latitude: ${latitude}, Longitude: ${longitude}`);
+          
           const formattedAddress = await getAddressFromCoordinates(
             latitude.toString(),
             longitude.toString()
@@ -714,15 +686,16 @@ const MainScreen = () => {
 
   const handleLocationClick = () => {
     if (coordinates.lat && coordinates.long && responderCoordinates) {
-      const mapUrl = generateMapUrl(
-        responderCoordinates.lat,
-        responderCoordinates.lon,
-        coordinates.lat,
-        coordinates.long
-      );
-      
-      // Open map in a new window
-      window.open(mapUrl, '_blank', 'width="100%",height="100%"');
+      // Open map in a new window with incident ID
+      const width = window.screen.width;
+      const height = window.screen.height;
+      const newWindow = window.open(`/map?incidentId=${incidentId}`, '_blank', `width=${width},height=${height},left=0,top=0`);
+
+      if (newWindow) {
+        newWindow.moveTo(0, 0);
+        newWindow.resizeTo(screen.availWidth, screen.availHeight);
+        newWindow.focus();
+      }
     } else {
       console.error('Responder coordinates not available');
     }
@@ -740,8 +713,6 @@ const MainScreen = () => {
   const handleOpenModal = () => setOpenModal(true);
 
   const { icon } = getIncidentIcon(incidentType || 'general');
-
-  
 
   return (
     <div className="min-h-screen bg-[#1B4965]">
@@ -774,7 +745,7 @@ const MainScreen = () => {
                     ID: {currentChannelId.toUpperCase()}
                   </Typography>
                   <Typography sx={{fontWeight: "bold"}}>
-                    {incidentType ? incidentType.toUpperCase() : ""}
+                    {incidentType ? `${incidentType.toUpperCase()} CALL` : ""}
                   </Typography>
                   {/* <Typography sx={{fontWeight: "bold"}}>
                     {coordinates ? coordinates.lat + " " + coordinates.long : ""}
@@ -1259,7 +1230,21 @@ const MainScreen = () => {
         <Typography variant="body2" sx={{ color: 'white', mb: 1 }}>
           Type
         </Typography>
-        <TextField
+        {modalIncident === 'Other' ? (
+          <TextField
+            fullWidth
+            placeholder="Enter custom incident type"
+            value={customIncidentType}
+            onChange={(e) => setCustomIncidentType(e.target.value)}
+            variant="outlined"
+            sx={{ 
+              mb: 2,
+              backgroundColor: 'white',
+              borderRadius: 2,
+            }}
+          />
+        ) : (
+          <TextField
             select
             fullWidth
             value={modalIncident}
@@ -1277,26 +1262,60 @@ const MainScreen = () => {
               native: true,
             }}
           >
-            <option value="Vehicular Collision">Vehicular Collision</option>
-            <option value="Medical Emergency">Medical Emergency</option>
-            <option value="Fire">Fire</option>
-            <option value="Police">Police</option>
+            {incidentType?.toLowerCase() === 'medical' ? (
+              <>
+                <option value="Vehicular crash">Vehicular crash</option>
+                <option value="Workplace injury">Workplace injury</option>
+                <option value="Fall/slip">Fall/slip</option>
+                <option value="Allergic reaction">Allergic reaction</option>
+                <option value="Sudden illness">Sudden illness</option>
+                <option value="Other">Other (specify)</option>
+              </>
+            ) : incidentType?.toLowerCase() === 'fire' ? (
+              <>
+                <option value="Structure fire">Structure fire</option>
+                <option value="Wildland fire">Wildland fire</option>
+                <option value="Hazardous materials release">Hazardous materials release</option>
+                <option value="Gas leak">Gas leak</option>
+                <option value="Electrical malfunction">Electrical malfunction</option>
+                <option value="Other">Other (specify)</option>
+              </>
+            ) : incidentType?.toLowerCase() === 'police' ? (
+              <>
+                <option value="Suspected robbery">Suspected robbery</option>
+                <option value="Domestic disturbance">Domestic disturbance</option>
+                <option value="Trespassing">Trespassing</option>
+                <option value="Traffic violation">Traffic violation</option>
+                <option value="Suspicious activity">Suspicious activity</option>
+                <option value="Other">Other (specify)</option>
+              </>
+            ) : (
+              <>
+                <option value="Utility outage">Utility outage</option>
+                <option value="Flooding">Flooding</option>
+                <option value="Downed trees/power lines">Downed trees/power lines</option>
+                <option value="Public disturbance">Public disturbance</option>
+                <option value="Lost person">Lost person</option>
+                <option value="Other">Other (specify)</option>
+              </>
+            )}
           </TextField>
-          <Typography variant="body2" sx={{ color: 'white', mb: 1 }}>
-            Message
-          </Typography>
-          <TextField
-            multiline
-            rows={4}
-            fullWidth
-            value={modalIncidentDescription}
-            onChange={(e) => setModalIncidentDescription(e.target.value)}
-            variant="outlined"
-            sx={{ 
-              backgroundColor: 'white',
-              borderRadius: 2,
-            }}
-          />
+        )}
+        <Typography variant="body2" sx={{ color: 'white', mb: 1 }}>
+          Message
+        </Typography>
+        <TextField
+          multiline
+          rows={4}
+          fullWidth
+          value={modalIncidentDescription}
+          onChange={(e) => setModalIncidentDescription(e.target.value)}
+          variant="outlined"
+          sx={{ 
+            backgroundColor: 'white',
+            borderRadius: 2,
+          }}
+        />
         </div>
 
         
@@ -1459,48 +1478,5 @@ const VideoCallHandler = () => {
   );
 };
 
-// const CallStateHandler = ({ 
-//   call, 
-//   onCallAccepted 
-// }: { 
-//   call: Call; 
-//   onCallAccepted: () => void; 
-// }) => {
-//   const { useCallCallingState } = useCallStateHooks();
-//   const callingState = useCallCallingState();
-  
-//   console.log(`Call ${call.cid} state:`, callingState);
-  
-//   useEffect(() => {
-//     console.log(`Call state changed to: ${callingState}`);
-    
-//     if (callingState === CallingState.JOINED) {
-//       console.log("Call joined, triggering accepted callback");
-//       onCallAccepted();
-//     }
-//   }, [callingState, onCallAccepted]);
-  
-//   if (callingState === CallingState.RINGING) {
-//     console.log("Rendering RingingCall UI");
-//     return (
-//       <div style={{ 
-//         position: 'fixed', 
-//         top: 0, 
-//         left: 0, 
-//         right: 0, 
-//         bottom: 0, 
-//         zIndex: 9999,
-//         backgroundColor: 'rgba(0,0,0,0.7)',
-//         display: 'flex',
-//         justifyContent: 'center',
-//         alignItems: 'center'
-//       }}>
-//         <RingingCall includeSelf={true} totalMembersToShow={4} />
-//       </div>
-//     );
-//   }
-  
-//   return null;
-// };
 
 export default MainScreen;

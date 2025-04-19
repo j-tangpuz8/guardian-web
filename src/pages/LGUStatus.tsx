@@ -20,6 +20,12 @@ interface Incident {
   lgu: string;
   lguStatus: string;
   channelId?: string;
+  user: {
+    firstName: string;
+    lastName: string;
+    _id: string;
+  };
+  dispatcher: string;
 }
 
 const LGUStatus = () => {
@@ -90,7 +96,7 @@ const LGUStatus = () => {
 
   const getNextChannelId = async (incidentType: string, incidentId: string) => {
     try {
-        const data = incidentId.substring(5,9);
+        const data = incidentId.substring(4,9);
         return `${incidentType.toLowerCase()}-${data}`;
     } catch (error) {
         console.error('Error generating channel ID:', error);
@@ -104,6 +110,14 @@ const LGUStatus = () => {
     try {
       const channelId = await getNextChannelId(connectingIncident.incidentType, connectingIncident._id);
       
+      // Create the chat channel
+      const channel = client.channel('messaging', channelId, {
+        name: `${connectingIncident.incidentType} Incident #${channelId.split('-')[1]}`,
+        members: [connectingIncident.user._id, lguId]
+      });
+      
+      await channel.create();
+
       const response = await fetch(`${config.PERSONAL_API}/incidents/update/${connectingIncident._id}`, {
         method: 'PUT',
         headers: {
@@ -126,14 +140,8 @@ const LGUStatus = () => {
         setConnectingIncident(null);
         setOpenModal(false);
 
-        // Navigate to LGUMain
-        navigate('/lgu-main', {
-          state: {
-            incident: connectingIncident,
-            incidentId: connectingIncident._id,
-            channelId: channelId
-          }
-        });
+        // Navigate to LGUMain with incident ID in URL
+        navigate(`/lgu-main/${connectingIncident._id}`);
       }
     } catch (error) {
       console.error('Error accepting incident:', error);

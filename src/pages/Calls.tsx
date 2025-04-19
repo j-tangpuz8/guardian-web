@@ -1,6 +1,5 @@
 import {
   Call,
-  CallingState,
   StreamCall,
   StreamVideo,
   StreamVideoClient,
@@ -8,7 +7,10 @@ import {
   useCallStateHooks,
   StreamTheme,
   SpeakerLayout,
-  CallControls,
+  CancelCallButton,
+  ToggleAudioPublishingButton,
+  ToggleVideoPublishingButton,
+  SpeakingWhileMutedNotification,
   User,
 } from "@stream-io/video-react-sdk";
 // import CallContainer from "../components/CallContainer";
@@ -94,7 +96,7 @@ export default function Calls() {
 
   return (
     <div className="flex h-screen bg-[#1B4965] p-5 sm:gap-10 md:gap-2">
-      <div className="w-[350px] bg-gray-300 rounded-lg">
+      {/* <div className="w-[350px] bg-gray-300 rounded-lg">
         <div className="flex items-center gap-4 p-5">
           <div className="bg-green-200 p-2 rounded-full border-1">
             <WarningIcon sx={{color: "maroon", fontSize: "3em"}} />
@@ -197,13 +199,13 @@ export default function Calls() {
             ))}
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* video call*/}
       <div className="flex-1">
         <StreamVideo client={client}>
           <StreamCall call={call}>
-            <VideoCall />
+            <VideoCall client={client} />
           </StreamCall>
         </StreamVideo>
       </div>
@@ -211,7 +213,7 @@ export default function Calls() {
   );
 }
 
-export const VideoCall = () => {
+export const VideoCall = ({ client }: { client: StreamVideoClient }) => {
   const call = useCall();
   const navigate = useNavigate();
 
@@ -228,43 +230,18 @@ export const VideoCall = () => {
 
   const handleLeaveCall = async () => {
     try {
-      await call?.endCall();
-      navigate("/main");
+      if (call) {
+        await call.leave();
+        if (client) {
+          await client.disconnectUser();
+        }
+        navigate("/main");
+      }
     } catch (error) {
       console.error("Error leaving call:", error);
     }
   };
 
-  // const handleInviteParticipant = useCallback(async () => {
-  //   try {
-  //     await call?.getOrCreate({
-  //       ring: true, 
-  //       data: {
-  //         members: [
-  //           { user_id: userId }, 
-  //           { user_id: "1beozaei5ny" }
-  //         ]
-  //       }
-  //     });
-  //   } catch (error) {
-  //     console.error("Error inviting participant:", error);
-  //   }
-  // }, [call]);
-
-  // if (callingState === CallingState.RINGING) {
-  //   console.log("Call is in RINGING state");
-  //   return <RingingCall includeSelf={true} totalMembersToShow={4} />;
-  // }
-
-  // if (callingState === CallingState.JOINING) {
-  //   console.log("Call is in JOINING state");
-  //   return <div className="text-center p-8">Joining call...</div>;
-  // }
-
-  // if (callingState !== CallingState.JOINED) {
-  //   console.log("Call state:", callingState);
-  //   return <div className="text-center p-8">Loading call...</div>;
-  // }
 
   const handleRemoveParticipant = async () => {
     try {
@@ -276,38 +253,19 @@ export const VideoCall = () => {
 
   return (
     <StreamTheme>
-      {/* <MyParticipantList participants={remoteParticipants} /> */}
-      {/* <MyFloatingLocalParticipant participant={localParticipant} /> */}
-      <SpeakerLayout participantsBarPosition="bottom" />
-      <div className="flex justify-center items-center gap-5">
-        <CallControls 
-        onLeave = {handleLeaveCall}
-        />
-
-        {/* <Button
-          onClick={() => handleLeaveCall()}
-          variant="contained"
-          sx={{backgroundColor: "maroon"}}>
-          Leave Call
-        </Button> */}
-        <Typography variant="h6" color="white">
-          Participants in this call: {participantCount}
-        </Typography>
-      </div>
-      <div className="flex gap-5 items-center justify-center">
-        <Button
-          variant="contained"
-          onClick={() => handleRemoveParticipant()}
-          sx={{backgroundColor: "white", color: "maroon"}}>
-          Remove Caller
-        </Button>
-        <Button 
-          variant="contained" 
-          // onClick={handleInviteParticipant}
-        >
-          <span className="text-xl">+&nbsp;</span> Invite Participant
-        </Button>
-      </div>
-    </StreamTheme>
+    <SpeakerLayout participantsBarPosition="bottom" />
+    <div className="flex justify-center items-center gap-5 mt-4">
+      <SpeakingWhileMutedNotification>
+        <ToggleAudioPublishingButton />
+      </SpeakingWhileMutedNotification>
+      <ToggleVideoPublishingButton />
+      <CancelCallButton 
+        onClick={handleLeaveCall}
+      />
+      <Typography variant="h6" color="white">
+        Participants in this call: {participantCount}
+      </Typography>
+    </div>
+  </StreamTheme>
   );
 };
