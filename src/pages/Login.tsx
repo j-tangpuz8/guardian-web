@@ -43,14 +43,12 @@ const Login = () => {
 
       const {token, user} = response.data;
       
-      // Log the user data to verify the role
       console.log('Login response:', response.data);
       
-      // Store user data and token
       localStorage.setItem("user", JSON.stringify({
         ...user,
-        id: user.id, // Add id field for compatibility
-        role: response.data.role  // Make sure to store the role from response.data
+        id: user.id, 
+        role: response.data.role  
       }));
       localStorage.setItem("token", token);
 
@@ -66,18 +64,16 @@ const Login = () => {
         token
       );
 
-      // Store chat client
       localStorage.setItem("chatClient", JSON.stringify({
         id: user.id,
         token: token
       }));
 
-      // Check user role and navigate accordingly
-      const userRole = response.data.role.toLowerCase();  // Get role directly from response.data
+      const userRole = response.data.role.toLowerCase();  
       console.log('User role:', userRole);
       
       if (userRole === 'lgu') {
-        window.location.href = '/lgu-status';
+        window.location.href = '/lgu-main';
       } else {
         window.location.href = '/status';
       }

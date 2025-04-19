@@ -77,7 +77,7 @@ function App() {
               element={
                 isAuthenticated 
                   ? (userRole === 'LGU' 
-                      ? <Navigate to="/lgu-status" replace /> 
+                      ? <Navigate to="/lgu-main" replace /> 
                       : <Navigate to="/status" replace />)
                   : <Login />
               } 
@@ -87,8 +87,7 @@ function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/call" element={isAuthenticated ? <Calls /> : <Navigate to="/" replace />} />
             <Route path="/status" element={isAuthenticated ? <Status /> : <Navigate to="/" replace />} />
-            <Route path="/lgu-status" element={isAuthenticated ? <LGUStatus /> : <Navigate to="/" replace />} />
-            <Route path="/lgu-main/:incidentId" element={isAuthenticated ? <LGUMain /> : <Navigate to="/" replace />} />
+            <Route path="/lgu-main" element={isAuthenticated ? <LGUMain /> : <Navigate to="/" replace />} />
             <Route path="/map" element={isAuthenticated ? <MapView /> : <Navigate to="/" replace />} />
             <Route path="/responder-map" element={isAuthenticated ? <ResponderMap /> : <Navigate to="/" replace />} />
           </Routes>

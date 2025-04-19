@@ -1,5 +1,5 @@
 import { User } from "@stream-io/video-react-sdk";
-import avatarImg from "../assets/images/avatar.jpg";
+import avatarImg from "../assets/images/user.png";
 import { Paper, Avatar, Typography, Box, Button, Modal } from "@mui/material";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useChatContext } from 'stream-chat-react';
@@ -39,11 +39,8 @@ interface Incident {
 }
 
 export default function Status() {
-  // Get user data from localStorage
   const userStr = localStorage.getItem("user");
   const userData = userStr ? JSON.parse(userStr) : null;
-  
-  // Hooks must be called before any conditional returns
   const { client } = useChatContext();
   const navigate = useNavigate();
   const [isInvisible, setIsInvisible] = useState(true);
@@ -52,19 +49,13 @@ export default function Status() {
   const [lastCheck, setLastCheck] = useState(Date.now());
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [address, setAddress] = useState<string>('');
-  
-  // Safe access to user data
   const userId = userData?.id;
   const userRole = userData?.role;
   const userName = userData?.name || "Jolony Tangpuy";
-
-  // Check authentication - NOW we can do an early return 
-  // after all hooks have been called
   if (!userData) {
     return <Navigate to="/" replace />;
   }
 
-  // Setup CSS animation for shake effect
   useEffect(() => {
     const style = document.createElement('style');
     style.innerHTML = `
@@ -94,9 +85,7 @@ export default function Status() {
     };
   }, []);
 
-  // Effect for checking incidents
   useEffect(() => {
-    // Early return if user is not logged in or is offline
     if (!userId || isInvisible) {
       setCurrentIncident(null);
       setOpenModal(false);
@@ -109,14 +98,12 @@ export default function Status() {
       try {
         let response;
         if (userRole === 'LGU') {
-          // For LGU users, check for connecting incidents assigned to them
           response = await fetch(`${config.PERSONAL_API}/incidents/lgu-connecting/${userId}`, {
             headers: {
               'Authorization': `Bearer ${localStorage.getItem('token')}`
             }
           });
         } else {
-          // For dispatchers, check for unaccepted incidents
           response = await fetch(`${config.PERSONAL_API}/incidents`);
         }
         
@@ -124,13 +111,11 @@ export default function Status() {
         
         let relevantIncident;
         if (userRole === 'LGU') {
-          // For LGU users, show the first connecting incident
           relevantIncident = incidents.find((incident: Incident) => 
             incident.lgu === userId && 
             incident.lguStatus === "connecting"
           );
         } else {
-          // For dispatchers, show the most recent unaccepted incident
           const unresolvedIncidents = incidents.filter((incident: Incident) => !incident.isAccepted);
           relevantIncident = unresolvedIncidents.sort((a: Incident, b: Incident) => 
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -138,7 +123,6 @@ export default function Status() {
         }
         
         if (relevantIncident && (!currentIncident || currentIncident._id !== relevantIncident._id)) {
-          // Get address from coordinates if available
           if (relevantIncident.incidentDetails?.coordinates) {
             const formattedAddress = await getAddressFromCoordinates(
               relevantIncident.incidentDetails.coordinates.lat,
@@ -175,10 +159,7 @@ export default function Status() {
       }
     };
 
-    // Initial check
     checkForIncidents();
-    
-    // Setup interval for subsequent checks
     interval = setInterval(checkForIncidents, 3000);
 
     return () => {
@@ -189,16 +170,11 @@ export default function Status() {
   }, [currentIncident, lastCheck, isInvisible, userId, userRole]);
 
   const handleLogout = () => {
-    // First cancel any ongoing activities
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
-    
-    // Clear user data from localStorage
     localStorage.clear();
-    
-    // Redirect to login page
     navigate("/", { replace: true });
   };
 
@@ -281,7 +257,6 @@ export default function Status() {
     try {
       let response;
       if (userRole === 'LGU') {
-        // For LGU users, accept the connection
         response = await fetch(`${config.PERSONAL_API}/incidents/update/${currentIncident._id}`, {
           method: 'PUT',
           headers: {
@@ -294,7 +269,6 @@ export default function Status() {
           })
         });
       } else {
-        // For dispatchers, accept the incident
         response = await fetch(`${config.PERSONAL_API}/incidents/update/${currentIncident._id}`, {
           method: 'PUT',
           headers: {
@@ -351,7 +325,6 @@ export default function Status() {
     }
   };
 
-  // Create a user object for display
   const user: User = {
     id: userId,
     name: userName,

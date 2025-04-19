@@ -11,7 +11,7 @@ import medicalIcon from '../assets/images/Medical.png';
 import generalIcon from '../assets/images/General.png';
 import fireIcon from '../assets/images/Fire.png';
 import crimeIcon from '../assets/images/Police.png';
-import avatarImg from "../assets/images/avatar.jpg";
+import avatarImg from "../assets/images/user.png";
 import { getAddressFromCoordinates } from '../utils/geocoding';
 import { StreamChat } from 'stream-chat';
 import {
@@ -195,7 +195,6 @@ const MapView = () => {
             };
             setResponderCoords(responderCoords);
             
-            // Fetch responder's address
             const responderFormattedAddress = await getAddressFromCoordinates(
               responderCoords.lat.toString(),
               responderCoords.lng.toString()

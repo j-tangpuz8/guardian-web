@@ -11,7 +11,7 @@ import ambulanceIcon from '../assets/images/ambulance.png';
 import policecarIcon from '../assets/images/policecar.png';
 import firetruckIcon from '../assets/images/firetruck.png';
 import Grid from "@mui/material/Grid2";
-import avatarImg from "../assets/images/avatar.jpg";
+import avatarImg from "../assets/images/user.png";
 import { getAddressFromCoordinates } from '../utils/geocoding';
 import { TextField, InputAdornment} from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
@@ -226,10 +226,8 @@ const ResponderMap = () => {
     fetchIncidentData();
   }, []);
 
-  // Function to dispatch a responder
   const handleDispatchResponder = async (responderId: string) => {
     try {
-      // Get incident ID from URL
       const urlParams = new URLSearchParams(window.location.search);
       const incidentId = urlParams.get('incidentId');
       
@@ -237,8 +235,6 @@ const ResponderMap = () => {
         console.error('No incident ID found for dispatching responder');
         return;
       }
-      
-      // Update the incident with the responder ID
       const response = await fetch(`${config.PERSONAL_API}/incidents/update/${incidentId}`, {
         method: 'PUT',
         headers: {
@@ -257,14 +253,12 @@ const ResponderMap = () => {
       
       console.log(`Successfully dispatched responder ${responderId} to incident ${incidentId}`);
       
-      // After successful dispatch, send the initial message to the second channel
       await sendInitialMessage(responderId);
     } catch (error) {
       console.error('Error dispatching responder:', error);
     }
   };
   
-  // Function to send initial message
   const sendInitialMessage = async (responderId: string) => {
     if (!chatClient || !userId || !token || !secondChannelId) {
       console.error('Missing required data for sending initial message');
@@ -272,7 +266,6 @@ const ResponderMap = () => {
     }
     
     try {
-      // Get incident ID from URL
       const urlParams = new URLSearchParams(window.location.search);
       const incidentId = urlParams.get('incidentId');
       
@@ -281,7 +274,6 @@ const ResponderMap = () => {
         return;
       }
       
-      // Fetch incident data directly from API
       const response = await fetch(`${config.PERSONAL_API}/incidents/${incidentId}`);
       if (!response.ok) {
         console.error('Failed to fetch incident data for initial message');
@@ -290,18 +282,13 @@ const ResponderMap = () => {
       
       const incidentData = await response.json();
       
-      // Get incident details directly from the response
       const incidentDetails = {
         incident: incidentData.incidentDetails?.incident || "Not specified",
         incidentDescription: incidentData.incidentDetails?.incidentDescription || "No description provided"
       };
       
       const channel = chatClient.channel("messaging", secondChannelId);
-      
-      // Create the channel if it doesn't exist
       await channel.create();
-      
-      // Send the initial message
       await channel.sendMessage({
         text: `Incident: ${incidentDetails.incident}\nDescription: ${incidentDetails.incidentDescription}`,
         user_id: userId
@@ -326,7 +313,6 @@ const ResponderMap = () => {
     return () => clearInterval(interval);
   }, [acceptedAt]);
 
-  // Function to format laps time
   const formatLapsTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
@@ -377,6 +363,7 @@ const ResponderMap = () => {
       await chat.connectUser(
         {
           id: userId,
+          name: userStr2?.firstName && userStr2?.lastName ? `${userStr2.firstName} ${userStr2.lastName}` : userStr2?.name || 'User',
           image: avatarImg,
         },
         token
@@ -397,12 +384,9 @@ const ResponderMap = () => {
         setChatClient(null);
       }
     };
-  }, [userId, token]);
+  }, [userId]);
 
-  // Replace the useEffect that automatically sends the initial message
   useEffect(() => {
-    // Don't auto-send the initial message anymore
-    // We'll send it only after dispatching a responder
   }, [chatClient, userId, token, secondChannelId]);
 
   if (loading && !error) {
@@ -521,7 +505,6 @@ const ResponderMap = () => {
 
         <Box sx={{ mb: 4, p: 1 }}>
         
-        {/* Search Bar Addition */}
         <Box sx={{ 
           display: 'flex', 
           mb: 1, 
@@ -555,9 +538,7 @@ const ResponderMap = () => {
             Search
           </Button>
         </Box>
-        
 
-        {/* AMBULANCE SECTION */}
         <Typography variant="h6" sx={{ color: 'black' }}>AMBULANCE</Typography>
         {responderUsers
           .filter(user => user.type?.toLowerCase() === 'ambulance' || user.firstName?.toLowerCase().includes('ambu'))
@@ -601,8 +582,6 @@ const ResponderMap = () => {
             </Box>
           ))}
         
-
-        {/* FIRETRUCK SECTION */}
         <Typography variant="h6" sx={{color: 'black' }}>FIRETRUCK</Typography>
         <Box sx={{  }}>
           
@@ -650,7 +629,7 @@ const ResponderMap = () => {
         </Box>
 
 <Typography variant="h6" sx={{  color: 'black' }}>POLICE</Typography>
-        {/* POLICE SECTION */}
+
         <Box sx={{ mb: 1 }}>
           
           {responderUsers
@@ -982,7 +961,6 @@ const ResponderMap = () => {
         </Grid>
         </Grid>
       
-      {/* First Chat Widget */}
       {chatClient && currentChannelId && lguStatus === 'connected' && (
         <Box
           sx={{
@@ -999,7 +977,6 @@ const ResponderMap = () => {
             zIndex: 1000
           }}
         >
-          {/* Chat Header */}
           <Box
             onClick={() => setIsChatExpanded(!isChatExpanded)}
             sx={{
@@ -1013,12 +990,12 @@ const ResponderMap = () => {
             }}
           >
             <Typography sx={{ fontWeight: 'bold', textTransform: "uppercase" }}>
-              Channel ID: {incidentType ? `${incidentType}-${incidentId?.substring(5,9)}` : ""}
+              {/* Channel ID: {incidentType ? `${incidentType}-${incidentId?.substring(5,9)}` : ""} */}
+              Channel ID: DISPATCHER-LGU
             </Typography>
             {isChatExpanded ? <KeyboardArrowDownIcon /> : <KeyboardArrowUpIcon />}
           </Box>
 
-          {/* Chat Content */}
           <Box
             sx={{
               height: 'calc(100% - 40px)',
@@ -1037,13 +1014,12 @@ const ResponderMap = () => {
         </Box>
       )}
       
-      {/* Second Chat Widget */}
       {chatClient && secondChannelId && lguStatus === 'connected' && (
         <Box
           sx={{
             position: 'fixed',
             bottom: 0,
-            right: 380, // Position it to the left of the first chat widget
+            right: 380, 
             width: '350px',
             backgroundColor: 'white',
             borderRadius: '10px 10px 0 0',
@@ -1054,11 +1030,10 @@ const ResponderMap = () => {
             zIndex: 1000
           }}
         >
-          {/* Chat Header */}
           <Box
             onClick={() => setIsSecondChatExpanded(!isSecondChatExpanded)}
             sx={{
-              bgcolor: '#e53935', // Different color for the second chat
+              bgcolor: '#e53935', 
               color: 'white',
               p: 1,
               display: 'flex',
@@ -1068,12 +1043,11 @@ const ResponderMap = () => {
             }}
           >
             <Typography sx={{ fontWeight: 'bold', textTransform: "uppercase" }}>
-              Channel ID: {incidentType ? `${incidentType}-${incidentId?.substring(5,10)}` : ""}
+              {/* Channel ID: {incidentType ? `${incidentType}-${incidentId?.substring(5,10)}` : ""} */}
+              Channel ID: LGU-RESPONDER
             </Typography>
             {isSecondChatExpanded ? <KeyboardArrowDownIcon /> : <KeyboardArrowUpIcon />}
           </Box>
-
-          {/* Chat Content */}
           <Box
             sx={{
               height: 'calc(100% - 40px)',

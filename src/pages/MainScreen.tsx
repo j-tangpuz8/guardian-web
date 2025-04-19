@@ -13,7 +13,8 @@ import {
   Box,
   TextField
 } from "@mui/material";
-import avatarImg from "../assets/images/avatar.jpg";
+import avatarImg from "../assets/images/user.png";
+import avatarImg2 from "../assets/images/avatar.jpg";
 import Icon from "../assets/images/Medical.png";
 import SystemSecurityUpdateWarningIcon from "@mui/icons-material/SystemSecurityUpdateWarning";
 import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
@@ -91,7 +92,6 @@ const MainScreen = () => {
     name: userStr2?.name || "User",
   };
 
-  // State declarations
   const [chatClient, setChatClient] = useState<StreamChat | null>(null);
   const [videoClient, setVideoClient] = useState<StreamVideoClient | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>("");
@@ -122,7 +122,6 @@ const MainScreen = () => {
   const [showMap, setShowMap] = useState(false);
   const [responderCoordinates, setResponderCoordinates] = useState<{lat: number; lon: number} | null>(null);
 
-  // Helper functions
   const getIncidentIcon = (incidentType: string) => {
     const type = incidentType?.toLowerCase() || '';
 
@@ -262,8 +261,6 @@ const MainScreen = () => {
         }
 
         setResponderCoordinates(data.responderCoordinates || null);
-
-        // Fetch user data if we have user info
         if (data.user) {
           let userId = typeof data.user === 'string' ? data.user : data.user._id;
           setVolunteerID(userId);
@@ -284,7 +281,6 @@ const MainScreen = () => {
     }
   };
 
-  // Effects
   useEffect(() => {
     if (!incidentId) {
       console.log('MainScreen Component - No Incident ID received');
@@ -363,10 +359,7 @@ const MainScreen = () => {
   }, [userId, token]);
 
   const handleLogout = () => {
-    // Clear user data from localStorage
     localStorage.clear();
-    
-    // Redirect to login page
     navigate("/");
   };
 
@@ -416,21 +409,13 @@ const MainScreen = () => {
     }
   }
 
-  useEffect(() => {
-    const storedChannelId = localStorage.getItem('currentChannelId');
-    if (storedChannelId) {
-      setCurrentChannelId(storedChannelId);
-    }
-  }, []);
-
 
   useEffect(() => {
     const fetchUserData = async () => {
-      const currentIncidentId = location.state?.incident?._id || incidentId || localStorage.getItem('currentIncidentId');
+      const currentIncidentId = incidentId;
       
       if (currentIncidentId) {
         try {
-          // First fetch the incident to get the user ID
           const incidentResponse = await fetch(`/api/incidents/${currentIncidentId}`);
           if (!incidentResponse.ok) throw new Error('Failed to fetch incident');
           
@@ -444,11 +429,11 @@ const MainScreen = () => {
           } else if (incidentData.user && typeof incidentData.user.toString === 'function') {
             userId = incidentData.user.toString();
           }
-
+  
           setVolunteerID(userId);
           
           console.log('User ID extracted:', userId);
-
+  
           if (userId) {
             const userResponse = await fetch(`/api/users/${userId}`);
             if (!userResponse.ok) throw new Error('Failed to fetch user');
@@ -471,7 +456,7 @@ const MainScreen = () => {
     };
   
     fetchUserData();
-  }, [location.state?.incident, incidentId]);
+  }, [incidentId]);
   
 
   useEffect(() => {
@@ -493,8 +478,6 @@ const MainScreen = () => {
       setConnectingLguName(null);
     }
   }, [lguConnectingAt]);
-
-  // Function to format laps time
   const formatLapsTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
@@ -531,8 +514,6 @@ const MainScreen = () => {
       setLguConnectingAt(connectingTime);
       setConnectingLguName({ firstName: lguUser.firstName, lastName: lguUser.lastName });
       setConnectingModalOpen(true);
-
-      // Determine the incident type to send
       const incidentTypeToSend = modalIncident === "Other" ? customIncidentType : modalIncident;
 
       const response = await fetch(`${config.PERSONAL_API}/incidents/update/${id}`, {
@@ -560,7 +541,6 @@ const MainScreen = () => {
         const responseData = await response.json();
         console.log("Update response:", responseData);
         setSelectedLgu(lguUser);
-        // Don't close the LGU selection modal here
       } else {
         console.error('Failed to update incident with LGU');
         const errorData = await response.json();
@@ -575,9 +555,7 @@ const MainScreen = () => {
     const checkLguStatus = async () => {
       if (lguConnectingAt) {
         const now = new Date();
-        const timeDiff = (now.getTime() - lguConnectingAt.getTime()) / 1000; // Convert to seconds
-        
-        // First check if the incident has been accepted (status is connected) or declined (status is idle)
+        const timeDiff = (now.getTime() - lguConnectingAt.getTime()) / 1000; 
         try {
           if (!incidentId) return;
 
@@ -589,13 +567,9 @@ const MainScreen = () => {
 
           if (response.ok) {
             const incidentData = await response.json();
-            
-            // If status is connected, close both modals and send initial message
+
             if (incidentData.lguStatus === 'connected') {
-              // Generate the channel ID using the incident type and ID
               const channelId = `${incidentData.incidentType.toLowerCase()}-${incidentId.substring(4,9)}`;
-              
-              // Send the initial message in the LGU-dispatcher channel
               if (chatClient) {
                 const channel = chatClient.channel('messaging', channelId);
                 await channel.sendMessage({
@@ -610,8 +584,6 @@ const MainScreen = () => {
               setOpenModal(false);
               return;
             }
-            
-            // If status is idle, close the connecting modal but keep LGU selection modal open
             if (incidentData.lguStatus === 'idle') {
               setLguConnectingAt(null);
               setConnectingModalOpen(false);
@@ -623,8 +595,6 @@ const MainScreen = () => {
         } catch (error) {
           console.error('Error checking incident status:', error);
         }
-
-        // If not connected and time exceeds 15 seconds, revert to idle
         if (timeDiff > 15) {
           if (!incidentId) return;
 
@@ -659,34 +629,9 @@ const MainScreen = () => {
     return () => clearInterval(interval);
   }, [lguConnectingAt, incidentId, token, chatClient, userId]);
 
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
-          setCurrentLocation({ lat: latitude, lng: longitude });
-          
-          console.log(`Current coordinates - Latitude: ${latitude}, Longitude: ${longitude}`);
-          
-          const formattedAddress = await getAddressFromCoordinates(
-            latitude.toString(),
-            longitude.toString()
-          );
-          setCurrentAddress(formattedAddress);
-        },
-        (error) => {
-          console.error('Error getting location:', error);
-          setCurrentAddress('Location access denied');
-        }
-      );
-    } else {
-      setCurrentAddress('Geolocation not supported');
-    }
-  }, []);
 
   const handleLocationClick = () => {
     if (coordinates.lat && coordinates.long && responderCoordinates) {
-      // Open map in a new window with incident ID
       const width = window.screen.width;
       const height = window.screen.height;
       const newWindow = window.open(`/map?incidentId=${incidentId}`, '_blank', `width=${width},height=${height},left=0,top=0`);
@@ -762,7 +707,7 @@ const MainScreen = () => {
                 flexDirection={"row"}
                 alignItems={"center"}
                 gap={"1rem"}>
-                <Avatar src={avatarImg} sx={{width: 105, height: 105}} />
+                <Avatar src={avatarImg2} sx={{width: 105, height: 105}} />
                 <div className="text-white">
                 {userData && (
                   <div className="text-white">

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Modal, Paper, Typography, Button, Box, Avatar } from '@mui/material';
 import config from '../config';
-import avatarImg from "../assets/images/avatar.jpg";
+import avatarImg from "../assets/images/user.png";
 import { useChatContext } from 'stream-chat-react';
 import { useNavigate } from 'react-router-dom';
 import { getAddressFromCoordinates } from '../utils/geocoding';
@@ -50,7 +50,7 @@ const LGUStatus = () => {
 
   useEffect(() => {
     const checkConnectingIncidents = async () => {
-      if (!lguId || isInvisible) return; // Only check if online
+      if (!lguId || isInvisible) return; 
 
       try {
         const response = await fetch(`${config.PERSONAL_API}/incidents`, {
@@ -61,7 +61,6 @@ const LGUStatus = () => {
 
         if (response.ok) {
           const data = await response.json();
-          // Filter for incidents where this LGU is assigned and status is connecting
           const connectingIncident = data.find((incident: Incident) => 
             incident.lgu === lguId && incident.lguStatus === 'connecting'
           );
@@ -70,7 +69,6 @@ const LGUStatus = () => {
             setConnectingIncident(connectingIncident);
             setOpenModal(true);
             
-            // Get address from coordinates
             if (connectingIncident.incidentDetails.coordinates.lat && connectingIncident.incidentDetails.coordinates.lon) {
               const formattedAddress = await getAddressFromCoordinates(
                 connectingIncident.incidentDetails.coordinates.lat.toString(),
@@ -79,7 +77,6 @@ const LGUStatus = () => {
               setAddress(formattedAddress);
             }
           } else if (connectingIncident && connectingIncident.lguStatus === 'idle') {
-            // Close modal if status changes to idle
             setConnectingIncident(null);
             setOpenModal(false);
             setAddress('');
@@ -90,9 +87,9 @@ const LGUStatus = () => {
       }
     };
 
-    const interval = setInterval(checkConnectingIncidents, 5000); // Check every 5 seconds
+    const interval = setInterval(checkConnectingIncidents, 5000); 
     return () => clearInterval(interval);
-  }, [lguId, token, isInvisible]); // Add isInvisible to dependencies
+  }, [lguId, token, isInvisible]); 
 
   const getNextChannelId = async (incidentType: string, incidentId: string) => {
     try {
@@ -133,14 +130,11 @@ const LGUStatus = () => {
       });
 
       if (response.ok) {
-        // Store incident data in localStorage
         localStorage.setItem('currentIncidentId', connectingIncident._id);
         localStorage.setItem('currentChannelId', channelId);
 
         setConnectingIncident(null);
         setOpenModal(false);
-
-        // Navigate to LGUMain with incident ID in URL
         navigate(`/lgu-main/${connectingIncident._id}`);
       }
     } catch (error) {

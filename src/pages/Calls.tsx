@@ -14,7 +14,7 @@ import {
   User,
 } from "@stream-io/video-react-sdk";
 // import CallContainer from "../components/CallContainer";
-import avatarImg from "../assets/images/avatar.jpg";
+import avatarImg from "../assets/images/user.png";
 import {useEffect, useState, useCallback} from "react";
 import {useNavigate, useLocation} from "react-router-dom";
 import config from "../config";
