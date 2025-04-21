@@ -48,25 +48,15 @@ const Login = () => {
       localStorage.setItem("user", JSON.stringify({
         ...user,
         id: user.id, 
-        role: response.data.role  
+        role: response.data.role,
+        name: `${response.data.firstName} ${response.data.lastName}`
       }));
       localStorage.setItem("token", token);
-
-      // Initialize Stream Chat client
-      const chatClient = new StreamChat(config.STREAM_APIKEY);
       
-      // Connect user to Stream Chat
-      await chatClient.connectUser(
-        {
-          id: user.id,
-          name: user.firstName + " " + user.lastName,
-        },
-        token
-      );
 
       localStorage.setItem("chatClient", JSON.stringify({
         id: user.id,
-        token: token
+        token: token,
       }));
 
       const userRole = response.data.role.toLowerCase();  

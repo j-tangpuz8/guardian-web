@@ -31,7 +31,9 @@ const token = localStorage.getItem("token");
 
 const user: User = {
   id: userId,
-  name: "Jolony Tangpuy",
+  name: userStr2?.firstName && userStr2?.lastName 
+    ? `${userStr2.firstName} ${userStr2.lastName}` 
+    : userStr2?.name || userStr2?.email || "Unknown User",
 };
 
 export default function Calls() {

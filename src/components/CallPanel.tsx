@@ -22,11 +22,13 @@ export const CallPanel = () => {
 
       // Attempt to maximize the window
       if (newWindow) {
-      newWindow.moveTo(0, 0);
-      newWindow.resizeTo(screen.availWidth, screen.availHeight);
-
-      // For some browsers, you might need to focus first
-      newWindow.focus();
+        newWindow.moveTo(0, 0);
+        newWindow.resizeTo(screen.availWidth, screen.availHeight);
+        newWindow.focus();
+      } else {
+        console.error("Failed to open new window for call. Pop-up might be blocked.");
+        // Fallback - navigate in the same window if popup is blocked
+        navigate('/call');
       }
     }
   }, [callingState, navigate, creator]);

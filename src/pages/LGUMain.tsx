@@ -36,6 +36,7 @@ import {
     Call
 } from "@stream-io/video-react-sdk";
 import { CallPanel } from "../components/CallPanel";
+import { RingingCall } from "../components/RingingCall";
 
 const getIncidentIcon = (incidentType: string) => {
     const type = incidentType?.toLowerCase() || '';
@@ -518,7 +519,9 @@ useEffect(() => {
             await chat.connectUser(
                 {
                     id: userId,
-                    name: userStr2?.firstName + " " + userStr2?.lastName,
+                    name: userStr2?.firstName && userStr2?.lastName 
+                        ? `${userStr2.firstName} ${userStr2.lastName}` 
+                        : userStr2?.email || "Unknown User",
                     image: avatarImg,
                 },
                 token
@@ -564,8 +567,9 @@ useEffect(() => {
                     apiKey: config.STREAM_APIKEY,
                     user: {
                         id: userId,
-                        name: userStr2?.firstName && userStr2?.lastName ? `${userStr2.firstName} ${userStr2.lastName}` : userStr2?.name || 'User',
-                        image: avatarImg,
+                        name: userStr2?.firstName && userStr2?.lastName 
+                            ? `${userStr2.firstName} ${userStr2.lastName}` 
+                            : userStr2?.email || "Unknown User",
                     },
                     token: token,
                     options: {
@@ -636,7 +640,7 @@ useEffect(() => {
                 data: {
                     members: [
                         { user_id: userId },
-                        { user_id: responderId }
+                        { user_id: "67ee19d01cf35d8bbbf6257e" }
                     ],
                     settings_override: {
                         ring: {
@@ -902,7 +906,7 @@ useEffect(() => {
                         border: `2px solid ${!isInvisible ? 'green' : 'red'}`,
                         cursor: 'pointer'
                         }}
-                        alt={userStr2?.name || "User"}
+                        alt={userStr2?.firstName + " " + userStr2?.lastName}
                         onClick={() => setShowStatusModal(true)}
                         />
 
@@ -1181,11 +1185,11 @@ useEffect(() => {
 
 const VideoCallHandler = () => {
     const calls = useCalls();
-    const { incidentId: urlIncidentId } = useParams();
+    const navigate = useNavigate();
     
     useEffect(() => {
         if (calls.length > 0) {
-            console.log("Active calls:", calls.length);
+            console.log("Active calls in LGUMain:", calls.length);
             calls.forEach(call => {
                 console.log(`Call ${call.cid} state:`, call.state.callingState);
             });

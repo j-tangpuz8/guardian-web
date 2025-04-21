@@ -89,7 +89,7 @@ const MainScreen = () => {
 
   const user = {
     id: userId,
-    name: userStr2?.name || "User",
+    name: userStr2?.firstName + " " + userStr2?.lastName,
   };
 
   const [chatClient, setChatClient] = useState<StreamChat | null>(null);
@@ -116,10 +116,6 @@ const MainScreen = () => {
   const [connectingLguName, setConnectingLguName] = useState<{ firstName: string; lastName: string } | null>(null);
   const [lguConnectingAt, setLguConnectingAt] = useState<Date | null>(null);
   const [address, setAddress] = useState<string>('');
-  const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [currentAddress, setCurrentAddress] = useState<string>('');
-  const [mapModalOpen, setMapModalOpen] = useState(false);
-  const [showMap, setShowMap] = useState(false);
   const [responderCoordinates, setResponderCoordinates] = useState<{lat: number; lon: number} | null>(null);
 
   const getIncidentIcon = (incidentType: string) => {
@@ -327,7 +323,7 @@ const MainScreen = () => {
           apiKey: config.STREAM_APIKEY,
           user: {
             id: userId,
-            name: userStr2?.name || 'User',
+            name: userStr2?.firstName + " " + userStr2?.lastName,
             image: avatarImg,
           },
           token: token,
@@ -386,7 +382,8 @@ const MainScreen = () => {
         data: {
           members: [
             { user_id: userId },
-            { user_id: '67f33ddaf0bce2cde6b95f57' }
+            // { user_id: volunteerID }
+            { user_id: "67f33ddaf0bce2cde6b95f57" },
           ],
           settings_override: {
             ring: {

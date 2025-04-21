@@ -11,6 +11,9 @@ import medicalIcon from '../assets/images/Medical.png';
 import generalIcon from '../assets/images/General.png';
 import fireIcon from '../assets/images/Fire.png';
 import crimeIcon from '../assets/images/Police.png';
+import ambulanceIcon from '../assets/images/ambulance.png';
+import firetruckIcon from '../assets/images/firetruck.png';
+import policecarIcon from '../assets/images/policecar.png';
 import avatarImg from "../assets/images/user.png";
 import { getAddressFromCoordinates } from '../utils/geocoding';
 import { StreamChat } from 'stream-chat';
@@ -60,6 +63,8 @@ const MapView = () => {
   const token = localStorage.getItem("token");
   const [lguStatus, setLguStatus] = useState<string>('connected');
   const [responderAddress, setResponderAddress] = useState<string>('');
+  const [responderStatus, setResponderStatus] = useState<string>('medicalFacility');
+  const [responderType, setResponderType] = useState<string>('ambulance');
 
   const getIncidentIcon = useCallback((type: string): google.maps.Icon | undefined => {
     if (!isGoogleLoaded) return undefined;
@@ -79,6 +84,30 @@ const MapView = () => {
         case 'General':
         default:
           return generalIcon;
+      }
+    })();
+
+    return {
+      url: iconUrl,
+      scaledSize: new google.maps.Size(40, 40),
+      anchor: new google.maps.Point(20, 40)
+    };
+  }, [isGoogleLoaded]);
+
+
+  const getIncidentIcon2 = useCallback((responderType: string): google.maps.Icon | undefined => {
+    if (!isGoogleLoaded) return undefined;
+
+    const iconUrl = (() => {
+      switch (responderType.toLowerCase()) {
+        case 'ambulance':
+          return ambulanceIcon;
+        case 'firetruck':
+          return firetruckIcon;
+        case 'police':
+          return policecarIcon;
+        default:
+          return ambulanceIcon; // Default to ambulance if unknown
       }
     })();
 
@@ -170,6 +199,10 @@ const MapView = () => {
           setLguStatus(data.lguStatus);
           setCurrentChannelId(data.channelId || `${data.incidentType.toLowerCase()}-${data._id.substring(4,9)}`);
           
+          if (data.responderStatus) {
+            setResponderStatus(data.responderStatus);
+          }
+
           if (data.incidentDetails?.coordinates) {
             const incidentCoords = {
               lat: Number(data.incidentDetails.coordinates.lat),
@@ -229,10 +262,21 @@ const MapView = () => {
               const responderResponse = await fetch(`${config.PERSONAL_API}/users/${responderId}`);
               if (responderResponse.ok) {
                 const responderData = await responderResponse.json();
+                console.log("Responder data:", responderData);
                 setResponderData({
                   firstName: responderData.firstName,
                   lastName: responderData.lastName
                 });
+                
+                if (responderData.type) {
+                  setResponderType(responderData.type);
+                } else if (responderData.responderType) {
+                  setResponderType(responderData.responderType);
+                } else if (responderData.userType) {
+                  setResponderType(responderData.userType);
+                } else if (responderData.respondingUnit) {
+                  setResponderType(responderData.respondingUnit);
+                }
               } else {
                 console.error('Failed to fetch responder data');
               }
@@ -366,9 +410,7 @@ const MapView = () => {
           {responderCoords && (
             <Marker
               position={responderCoords}
-              icon={{
-                url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'
-              }}
+              icon={getIncidentIcon2(responderType)}
               title="Responder Location"
             />
           )}
@@ -527,7 +569,7 @@ const MapView = () => {
         }}>
           <Box 
             component="img" 
-            src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgNTAiPjxyZWN0IHg9IjEwIiB5PSIyMCIgd2lkdGg9IjgwIiBoZWlnaHQ9IjIwIiBmaWxsPSJ3aGl0ZSIgc3Ryb2tlPSJyZWQiIHN0cm9rZS13aWR0aD0iMiIvPjxyZWN0IHg9IjUwIiB5PSIxMCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjIwIiBmaWxsPSJ3aGl0ZSIgc3Ryb2tlPSJyZWQiIHN0cm9rZS13aWR0aD0iMiIvPjxjaXJjbGUgY3g9IjI1IiBjeT0iNDUiIHI9IjgiIGZpbGw9ImJsYWNrIi8+PGNpcmNsZSBjeD0iNzUiIGN5PSI0NSIgcj0iOCIgZmlsbD0iYmxhY2siLz48cGF0aCBkPSJNNjAsMjBINzVWMzVINjBaIiBmaWxsPSJyZWQiLz48cGF0aCBkPSJNNjMsMjNIMjZWMzJINjNaIiBmaWxsPSJyZWQiLz48L3N2Zz4=" 
+            src={getIncidentIcon2(responderType)?.url}
             alt="Ambulance" 
             sx={{ width: 70, height: 70, marginBottom: 1 }} 
           />

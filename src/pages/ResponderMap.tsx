@@ -12,6 +12,7 @@ import policecarIcon from '../assets/images/policecar.png';
 import firetruckIcon from '../assets/images/firetruck.png';
 import Grid from "@mui/material/Grid2";
 import avatarImg from "../assets/images/user.png";
+import avatarImg2 from "../assets/images/avatar.jpg";
 import { getAddressFromCoordinates } from '../utils/geocoding';
 import { TextField, InputAdornment} from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
@@ -62,6 +63,15 @@ const ResponderMap = () => {
   const userId = userStr2?.id;
   const token = localStorage.getItem("token");
   const [lguStatus, setLguStatus] = useState<string>('connected');
+  const [responderType, setResponderType] = useState<string>('ambulance');
+
+
+  const user = {
+    id: userId,
+    name: userStr2?.firstName && userStr2?.lastName 
+      ? `${userStr2.firstName} ${userStr2.lastName}` 
+      : userStr2?.email || "Unknown User",
+  };
   
 
   const getIncidentIcon = useCallback((type: string): google.maps.Icon | undefined => {
@@ -78,6 +88,32 @@ const ResponderMap = () => {
         case 'general':
         default:
           return generalIcon;
+      }
+    })();
+
+    return {
+      url: iconUrl,
+      scaledSize: new google.maps.Size(40, 40),
+      anchor: new google.maps.Point(20, 40)
+    };
+  }, [isGoogleLoaded]);
+
+  const getIncidentIcon2 = useCallback((responderType: string): google.maps.Icon | undefined => {
+    if (!isGoogleLoaded) return undefined;
+    
+    console.log("Current responder type:", responderType);
+    
+    const iconUrl = (() => {
+      const typeLower = responderType?.toLowerCase() || 'ambulance';
+      
+      if (typeLower.includes('ambulance') || typeLower.includes('medical') || typeLower.includes('ambu')) {
+        return ambulanceIcon;
+      } else if (typeLower.includes('fire') || typeLower.includes('truck')) {
+        return firetruckIcon;
+      } else if (typeLower.includes('police') || typeLower.includes('cop')) {
+        return policecarIcon;
+      } else {
+        return ambulanceIcon;
       }
     })();
 
@@ -209,6 +245,50 @@ const ResponderMap = () => {
                 lastName: userData.lastName,
                 phone: userData.phone
               });
+            }
+          }
+
+          if (data.responderId || (data.responder && typeof data.responder === 'string')) {
+            const responderId = data.responderId || data.responder;
+            
+            try {
+              const responderResponse = await fetch(`${config.PERSONAL_API}/users/${responderId}`);
+              if (responderResponse.ok) {
+                const responderData = await responderResponse.json();
+                console.log("Responder data:", responderData);
+                
+                // Set the responder type from the user data
+                if (responderData.type) {
+                  console.log("Setting responder type from responderData.type:", responderData.type);
+                  setResponderType(responderData.type);
+                } else if (responderData.responderType) {
+                  console.log("Setting responder type from responderData.responderType:", responderData.responderType);
+                  setResponderType(responderData.responderType);
+                } else if (responderData.userType) {
+                  console.log("Setting responder type from responderData.userType:", responderData.userType);
+                  setResponderType(responderData.userType);
+                } else if (responderData.respondingUnit) {
+                  console.log("Setting responder type from responderData.respondingUnit:", responderData.respondingUnit);
+                  setResponderType(responderData.respondingUnit);
+                } else {
+                  // Use firstName to infer type if no other type field is available
+                  const name = responderData.firstName?.toLowerCase() || '';
+                  if (name.includes('ambu')) {
+                    console.log("Inferring responder type from name as ambulance");
+                    setResponderType('ambulance');
+                  } else if (name.includes('fire')) {
+                    console.log("Inferring responder type from name as firetruck");
+                    setResponderType('firetruck');
+                  } else if (name.includes('police')) {
+                    console.log("Inferring responder type from name as police");
+                    setResponderType('police');
+                  }
+                }
+              } else {
+                console.error('Failed to fetch responder data');
+              }
+            } catch (error) {
+              console.error('Error fetching responder data:', error);
             }
           }
         } else {
@@ -363,7 +443,9 @@ const ResponderMap = () => {
       await chat.connectUser(
         {
           id: userId,
-          name: userStr2?.firstName && userStr2?.lastName ? `${userStr2.firstName} ${userStr2.lastName}` : userStr2?.name || 'User',
+          name: userStr2?.firstName && userStr2?.lastName 
+            ? `${userStr2.firstName} ${userStr2.lastName}` 
+            : userStr2?.email || "Unknown User",
           image: avatarImg,
         },
         token
@@ -697,9 +779,7 @@ const ResponderMap = () => {
           {responderCoords && !directions && (
             <Marker
               position={responderCoords}
-              icon={{
-                url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'
-              }}
+              icon={getIncidentIcon2(responderType)}
               title="Responder Location"
             />
           )}
@@ -712,17 +792,42 @@ const ResponderMap = () => {
             />
           )}
           
-          {directions && (
+          {directions && responderCoords && (
             <DirectionsRenderer
               directions={directions}
               options={{
-                suppressMarkers: false,
+                suppressMarkers: true,
                 polylineOptions: {
                   strokeColor: '#1976D2',
                   strokeWeight: 5,
                   strokeOpacity: 0.8
                 }
               }}
+            />
+          )}
+          
+          {/* Add markers explicitly when directions are showing */}
+          {directions && responderCoords && (
+            <Marker
+              position={responderCoords}
+              icon={getIncidentIcon2(responderType) || {
+                url: ambulanceIcon,
+                scaledSize: new google.maps.Size(40, 40),
+                anchor: new google.maps.Point(20, 40)
+              }}
+              title="Responder Location"
+            />
+          )}
+          
+          {directions && incidentCoords && (
+            <Marker
+              position={incidentCoords}
+              icon={getIncidentIcon(incidentType) || {
+                url: medicalIcon,
+                scaledSize: new google.maps.Size(40, 40),
+                anchor: new google.maps.Point(20, 40)
+              }}
+              title="Incident Location"
             />
           )}
           
@@ -852,7 +957,7 @@ const ResponderMap = () => {
         }}>
           <Box 
             component="img" 
-            src={avatarImg}
+            src={avatarImg2}
             alt="Emergency Icon"
             sx={{ width: 70, height: 70, borderRadius: '50%'}}
           />
@@ -935,8 +1040,8 @@ const ResponderMap = () => {
         </Typography>
         <Box 
             component="img" 
-            src={ambulanceIcon}
-            alt="Ambulance" 
+            src={getIncidentIcon2(responderType)?.url}
+            alt="Responder Vehicle" 
             sx={{ width: 80, height: 70}} 
           />
       </Grid>

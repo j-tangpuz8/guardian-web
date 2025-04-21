@@ -34,7 +34,9 @@ function App() {
           await chatClient.connectUser(
             {
               id: user._id || user.id,
-              name: user.firstName + " " + user.lastName,
+              name: user.name || (user.firstName && user.lastName 
+                ? `${user.firstName} ${user.lastName}` 
+                : user.email || "Unknown User"),
             },
             storedToken
           );
