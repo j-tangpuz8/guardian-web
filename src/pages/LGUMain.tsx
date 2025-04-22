@@ -93,34 +93,37 @@ const IncidentCard = ({ incident, handleMapClick, handleCreateRingCall, handleSe
         <Paper
             elevation={3}
             sx={{
-                width: '300px',
-                borderRadius: '10px',
+                width: '220px',
+                borderRadius: '8px',
                 overflow: 'hidden',
-                m: 2
+                m: 1.5,
             }}
         >
             {/* Header */}
             <Box sx={{
                 display: 'flex',
-                alignItems: 'center',
-                gap: 2,
-                p: 2,
-                bgcolor: '#4a90e2'
+                alignItems: 'flex-start',
+                gap: 1.5,
+                p: 1,
+                bgcolor: '#4a90e2',
+                height: '75px',
             }}>
                 <Avatar
                     src={getIncidentIcon(incident.incidentType?.toLowerCase() || 'general').icon}
                     sx={{
-                        width: 50,
-                        height: 50,
+                        width: 55,
+                        height: 55,
                         bgcolor: 'white',
-                        p: 1
+                        p: 0.8,
+                        flexShrink: 0,
+                        
                     }}
                 />
                 <Box>
                     <Typography sx={{
                         color: 'white',
                         fontWeight: 'bold',
-                        fontSize: '0.9rem',
+                        fontSize: '0.8rem',
                         textTransform: 'uppercase'
                         }}>
                         ID: {incident.incidentType ? `${incident.incidentType}-${shortId}` : ""}
@@ -128,48 +131,59 @@ const IncidentCard = ({ incident, handleMapClick, handleCreateRingCall, handleSe
                     <Typography sx={{
                         color: 'white',
                         fontWeight: 'bold',
-                        fontSize: '0.9rem'
+                        fontSize: '0.8rem'
                     }}>
                         {incident.incidentType ? `${incident.incidentType.toUpperCase()} CALL` : ""}
                     </Typography>
-                    <Typography sx={{
-                        color: 'white',
-                        fontSize: '0.8rem'
-                    }}>
+                    <Typography 
+                        sx={{
+                            color: 'white',
+                            fontSize: '0.7rem',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2, 
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            lineHeight: '1.2em',
+                            maxHeight: '2.4em'
+                        }}
+                        title={incident.address || "Loading address..."}
+                    >
                         {incident.address || "Loading address..."}
                     </Typography>
                 </Box>
             </Box>
             <Box sx={{
                 bgcolor: '#e8f5e9',
-                p: 1,
+                p: 0.7,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
             }}>
                 <Typography sx={{
                     color: '#2e7d32',
-                    fontSize: '0.9rem'
+                    fontSize: '0.8rem'
                 }}>
                     RECEIVED : {formatReceivedTime(incident.receivedTime)}
                 </Typography>
             </Box>
             <Box sx={{
                 bgcolor: 'white',
-                p: 1,
+                p: 0.7,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
             }}>
                 <Typography sx={{
-                    fontWeight: 'bold'
+                    fontWeight: 'bold',
+                    fontSize: '0.8rem'
                 }}>
                     {incident.incidentDetails?.incident ? incident.incidentDetails.incident.toUpperCase() : (incident.incidentType ? incident.incidentType.toUpperCase() : "LOADING...")}
                 </Typography>
             </Box>
             <Box sx={{
                 bgcolor: 'white',
-                p: 1,
+                p: 0.7,
                 borderTop: '1px solid #eee',
                 display: 'flex',
                 alignItems: 'center',
@@ -177,7 +191,8 @@ const IncidentCard = ({ incident, handleMapClick, handleCreateRingCall, handleSe
             }}>
                 <Typography sx={{
                     color: 'red',
-                    fontSize: '0.9rem'
+                    fontSize: '0.8rem',
+                    fontWeight: 'bold'
                 }}>
                     LAPS TIME: {formatLapsTime(incident.timeLapsed)}
                 </Typography>
@@ -185,40 +200,47 @@ const IncidentCard = ({ incident, handleMapClick, handleCreateRingCall, handleSe
             <Box sx={{
                 bgcolor: '#333',
                 color: 'white',
-                p: 1.5,
-                textAlign: 'center'
+                p: 0.8,
+                textAlign: 'center',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '70px'
             }}>
-                <Typography>
+                <Typography sx={{ 
+                    fontSize: '0.8rem'
+                }}>
                     DISPATCH
                 </Typography>
             </Box>
             <Box sx={{
                 display: 'flex',
                 justifyContent: 'space-around',
-                p: 1,
+                p: 0.7,
                 bgcolor: 'white'
             }}>
                 <Button 
-                    sx={{ minWidth: 0, color: '#666' }}
+                    sx={{ minWidth: 0, color: '#666', p: 0.4 }}
                     onClick={() => incident.channelId && handleSelectIncidentForChat(incident.channelId)}
                 >
                     💬
                 </Button>
                 <Button 
-                    sx={{ minWidth: 0, color: '#666' }}
+                    sx={{ minWidth: 0, color: '#666', p: 0.4 }}
                     onClick={() => handleCreateRingCall(incident)}
                 >
                     📞
                 </Button>
-                <Button sx={{ minWidth: 0, color: '#666' }}>📹</Button>
+                <Button sx={{ minWidth: 0, color: '#666', p: 0.4 }}>📹</Button>
             </Box>
             <Button
                 fullWidth
                 sx={{
                     bgcolor: '#4a90e2',
                     color: 'white',
-                    py: 1.5,
+                    py: 0.8,
                     borderRadius: 0,
+                    fontSize: '0.8rem',
                     '&:hover': {
                         bgcolor: '#357abd'
                     }
@@ -640,7 +662,7 @@ useEffect(() => {
                 data: {
                     members: [
                         { user_id: userId },
-                        { user_id: "67ee19d01cf35d8bbbf6257e" }
+                        { user_id: responderId }
                     ],
                     settings_override: {
                         ring: {
@@ -674,9 +696,11 @@ useEffect(() => {
         }
     };
     if (isLoading) {
-        return <div className="min-h-screen bg-[#1B4965] flex items-center justify-center">
-            <Typography variant="h5" sx={{ color: 'white' }}>Loading...</Typography>
-        </div>;
+        return (
+            <div className="min-h-screen bg-[#1B4965] flex items-center justify-center">
+                <Typography variant="h5" sx={{ color: 'white' }}>Loading...</Typography>
+            </div>
+        );
     }
 
     return (
@@ -742,150 +766,150 @@ useEffect(() => {
                     justifyContent={"center"}
                     // backgroundColor = {"red"}
                     gap={"1rem"}>
-                        <Typography variant="h4" sx={{fontWeight: "bold", color: "red", letterSpacing: '0.1em', fontFamily: "Helvetica, Arial, sans-serif",}}>
+                        <Typography variant="h4" sx={{fontWeight: "bold", color: "red", letterSpacing: '0.1em'}}>
                             INCIDENTS
                         </Typography>
                     </Grid>
                     
                     <Grid
-  size={{md: 3.5}}
-  display={"flex"}
-  flexDirection={"column"} 
-  alignItems={"CENTER"}
-//   backgroundColor={"yellow"}
->
-    LIVE DATA
-  <Grid 
-    display={"flex"}
-    flexDirection={"row"}
-    alignItems={"center"}
-    justifyContent={"center"}
-    gap={"1rem"}
-    padding={"0.5rem 0.5rem 0 0.5rem"}
-  >
-    <Box sx={{ 
-      bgcolor: '#B93B48', 
-      borderRadius: 1, 
-      p: 0.5,
-      display: 'flex', 
-      alignItems: 'center',
-      gap: 1 
-    }}>
-      <FireTruckIcon sx={{ color: 'white' }} />
-      <Typography sx={{ color: 'white', fontWeight: 'bold' }}>10</Typography>
-    </Box>
-    
-    <Box sx={{ 
-      bgcolor: '#4285A8', 
-      borderRadius: 1, 
-      p: 0.5,
-      display: 'flex', 
-      alignItems: 'center',
-      gap: 1 
-    }}>
-      <DirectionsCarIcon sx={{ color: 'white' }} />
-      <Typography sx={{ color: 'white', fontWeight: 'bold' }}>20</Typography>
-    </Box>
-    
-    <Box sx={{ 
-      bgcolor: '#4285A8', 
-      borderRadius: 1, 
-      p: 0.5,
-      display: 'flex', 
-      alignItems: 'center',
-      gap: 1 
-    }}>
-      <LocalPoliceIcon sx={{ color: 'white' }} />
-      <Typography sx={{ color: 'white', fontWeight: 'bold' }}>20</Typography>
-    </Box>
-    
-    <Box sx={{ 
-      bgcolor: '#4A4740', 
-      borderRadius: 1, 
-      p: 0.5,
-      display: 'flex', 
-      alignItems: 'center',
-      gap: 1 
-    }}>
-      <TwoWheelerIcon sx={{ color: 'white' }} />
-      <Typography sx={{ color: 'white', fontWeight: 'bold' }}>10</Typography>
-    </Box>
-  </Grid>
-  <Grid 
-    display={"flex"}
-    flexDirection={"row"}
-    alignItems={"center"}
-    justifyContent={"center"}
-    gap={"1rem"}
-    padding={"0.5rem"}
-  >
-    <Box sx={{ 
-      bgcolor: '#B93B48', 
-      borderRadius: 1, 
-      p: 0.5, 
-      display: 'flex', 
-      alignItems: 'center',
-      gap: 1 
-    }}>
-      <Avatar 
-                    src={Medical}
-                    sx={{ width: 24, height: 24 }}
-                    alt={Medical}
-                  />
-      <Typography sx={{ color: 'white', fontWeight: 'bold' }}>10</Typography>
-    </Box>
-    
-    <Box sx={{ 
-      bgcolor: '#4285A8', 
-      borderRadius: 1, 
-      p: 0.5, 
-      display: 'flex', 
-      alignItems: 'center',
-      gap: 1 
-    }}>
-      <Avatar 
-                    src={Fire}
-                    sx={{ width: 24, height: 24 }}
-                    alt={Fire}
-                  />
-      {/* <DirectionsCarIcon sx={{ color: 'white' }} /> */}
-      <Typography sx={{ color: 'white', fontWeight: 'bold' }}>20</Typography>
-    </Box>
-    
-    <Box sx={{ 
-      bgcolor: '#4285A8', 
-      borderRadius: 1, 
-      p: 0.5, 
-      display: 'flex', 
-      alignItems: 'center',
-      gap: 1 
-    }}>
-      <Avatar 
-                    src={Police}
-                    sx={{ width: 24, height: 24 }}
-                    alt={Police }
-                  />
-      {/* <DirectionsCarIcon sx={{ color: 'white' }} /> */}
-      <Typography sx={{ color: 'white', fontWeight: 'bold' }}>20</Typography>
-    </Box>
-    
-    <Box sx={{ 
-      bgcolor: '#4A4740', 
-      borderRadius: 1, 
-      p: 0.5,
-      display: 'flex', 
-      alignItems: 'center',
-      gap: 1 
-    }}>
-      <Avatar 
-                    src={General}
-                    sx={{ width: 24, height: 24 }}
-                    alt={General}
-                  />
-      {/* <TwoWheelerIcon sx={{ color: 'white' }} /> */}
-      <Typography sx={{ color: 'white', fontWeight: 'bold' }}>10</Typography>
-    </Box>
-  </Grid>
+      size={{md: 3.5}}
+      display={"flex"}
+      flexDirection={"column"} 
+      alignItems={"CENTER"}
+    //   backgroundColor={"yellow"}
+    >
+        LIVE DATA
+      <Grid 
+        display={"flex"}
+        flexDirection={"row"}
+        alignItems={"center"}
+        justifyContent={"center"}
+        gap={"1rem"}
+        padding={"0.5rem 0.5rem 0 0.5rem"}
+      >
+        <Box sx={{ 
+          bgcolor: '#B93B48', 
+          borderRadius: 1, 
+          p: 0.5,
+          display: 'flex', 
+          alignItems: 'center',
+          gap: 1 
+        }}>
+          <FireTruckIcon sx={{ color: 'white' }} />
+          <Typography sx={{ color: 'white', fontWeight: 'bold' }}>10</Typography>
+        </Box>
+        
+        <Box sx={{ 
+          bgcolor: '#4285A8', 
+          borderRadius: 1, 
+          p: 0.5,
+          display: 'flex', 
+          alignItems: 'center',
+          gap: 1 
+        }}>
+          <DirectionsCarIcon sx={{ color: 'white' }} />
+          <Typography sx={{ color: 'white', fontWeight: 'bold' }}>20</Typography>
+        </Box>
+        
+        <Box sx={{ 
+          bgcolor: '#4285A8', 
+          borderRadius: 1, 
+          p: 0.5,
+          display: 'flex', 
+          alignItems: 'center',
+          gap: 1 
+        }}>
+          <LocalPoliceIcon sx={{ color: 'white' }} />
+          <Typography sx={{ color: 'white', fontWeight: 'bold' }}>20</Typography>
+        </Box>
+        
+        <Box sx={{ 
+          bgcolor: '#4A4740', 
+          borderRadius: 1, 
+          p: 0.5,
+          display: 'flex', 
+          alignItems: 'center',
+          gap: 1 
+        }}>
+          <TwoWheelerIcon sx={{ color: 'white' }} />
+          <Typography sx={{ color: 'white', fontWeight: 'bold' }}>10</Typography>
+        </Box>
+      </Grid>
+      <Grid 
+        display={"flex"}
+        flexDirection={"row"}
+        alignItems={"center"}
+        justifyContent={"center"}
+        gap={"1rem"}
+        padding={"0.5rem"}
+      >
+        <Box sx={{ 
+          bgcolor: '#B93B48', 
+          borderRadius: 1, 
+          p: 0.5, 
+          display: 'flex', 
+          alignItems: 'center',
+          gap: 1 
+        }}>
+          <Avatar 
+                        src={Medical}
+                        sx={{ width: 24, height: 24 }}
+                        alt={Medical}
+                      />
+          <Typography sx={{ color: 'white', fontWeight: 'bold' }}>10</Typography>
+        </Box>
+        
+        <Box sx={{ 
+          bgcolor: '#4285A8', 
+          borderRadius: 1, 
+          p: 0.5, 
+          display: 'flex', 
+          alignItems: 'center',
+          gap: 1 
+        }}>
+          <Avatar 
+                        src={Fire}
+                        sx={{ width: 24, height: 24 }}
+                        alt={Fire}
+                      />
+          {/* <DirectionsCarIcon sx={{ color: 'white' }} /> */}
+          <Typography sx={{ color: 'white', fontWeight: 'bold' }}>20</Typography>
+        </Box>
+        
+        <Box sx={{ 
+          bgcolor: '#4285A8', 
+          borderRadius: 1, 
+          p: 0.5, 
+          display: 'flex', 
+          alignItems: 'center',
+          gap: 1 
+        }}>
+          <Avatar 
+                        src={Police}
+                        sx={{ width: 24, height: 24 }}
+                        alt={Police }
+                      />
+          {/* <DirectionsCarIcon sx={{ color: 'white' }} /> */}
+          <Typography sx={{ color: 'white', fontWeight: 'bold' }}>20</Typography>
+        </Box>
+        
+        <Box sx={{ 
+          bgcolor: '#4A4740', 
+          borderRadius: 1, 
+          p: 0.5,
+          display: 'flex', 
+          alignItems: 'center',
+          gap: 1 
+        }}>
+          <Avatar 
+                        src={General}
+                        sx={{ width: 24, height: 24 }}
+                        alt={General}
+                      />
+          {/* <TwoWheelerIcon sx={{ color: 'white' }} /> */}
+          <Typography sx={{ color: 'white', fontWeight: 'bold' }}>10</Typography>
+        </Box>
+      </Grid>
 </Grid>
                     <Grid
                     size={{md: 1}}
@@ -912,14 +936,14 @@ useEffect(() => {
 
                     </Grid>
                         
-                    
+                        
                     
                 </Grid>
 
             </Grid>
             
             </Container>
-            <div className="min-h-screen bg-[#1B4965] flex items-center justify-center pt-24">
+            <div className="min-h-screen bg-[#1B4965] flex items-center justify-center pt-32">
                 <Box
                     sx={{
                         display: 'flex',

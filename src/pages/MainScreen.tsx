@@ -294,6 +294,7 @@ const MainScreen = () => {
         {
           id: userId,
           image: avatarImg,
+          name: "Yuri Medalla"
         },
         token
       );
@@ -382,8 +383,8 @@ const MainScreen = () => {
         data: {
           members: [
             { user_id: userId },
-            // { user_id: volunteerID }
-            { user_id: "67f33ddaf0bce2cde6b95f57" },
+            { user_id: volunteerID }
+            // { user_id: "67f33ddaf0bce2cde6b95f57" },
           ],
           settings_override: {
             ring: {
@@ -657,13 +658,13 @@ const MainScreen = () => {
   const { icon } = getIncidentIcon(incidentType || 'general');
 
   return (
-    <div className="min-h-screen bg-[#1B4965]">
+    <div className="min-h-screen bg-[#1B4965] p-4">
     {/* // <div className="h-screen max-h-screen bg-[#1B4965] overflow-hidden"> */}
       <Container maxWidth="xl" sx={{height: "100%"}}>
         <Grid container spacing={1}>
-          <Grid size={{xs: 12}} padding={"0.7rem"} 
+          <Grid size={{xs: 12}}
           // backgroundColor={"red"} 
-          height={"20vh"}>
+          height={"18vh"}>
             <Grid container spacing={8}>
               <Grid
                 size={{md: 4}}
@@ -683,7 +684,7 @@ const MainScreen = () => {
 
 
                 <div className="text-white">
-                  <Typography sx={{fontWeight: "bold"}}>
+                  <Typography sx={{}}>
                     ID: {currentChannelId.toUpperCase()}
                   </Typography>
                   <Typography sx={{fontWeight: "bold"}}>
@@ -692,7 +693,7 @@ const MainScreen = () => {
                   {/* <Typography sx={{fontWeight: "bold"}}>
                     {coordinates ? coordinates.lat + " " + coordinates.long : ""}
                   </Typography> */}
-                  <Typography sx={{fontWeight: "bold"}}>
+                  <Typography sx={{}}>
                     {address || "Loading address..."}
                   </Typography>
                   
@@ -711,13 +712,13 @@ const MainScreen = () => {
                     <Typography sx={{ fontWeight: "bold" }} variant="h5">
                       {userData.firstName.toUpperCase()} {userData.lastName.toUpperCase()}
                     </Typography>
-                    <Typography sx={{ fontWeight: "bold" }}>
+                    <Typography sx={{}}>
                       {userData.phone}
                     </Typography>
-                    <Typography sx={{ fontWeight: "bold" }}>
+                    <Typography sx={{}}>
                       GuardianPHOpcen
                     </Typography>
-                    <Typography sx={{ fontWeight: "bold" }}>
+                    <Typography sx={{}}>
                       Angel Rank
                     </Typography>
                     {/* <Typography sx={{ fontWeight: "bold" }}>
@@ -831,7 +832,8 @@ const MainScreen = () => {
                         width: "fit-content",
                         display: "flex",
                         justifyContent: "center",
-                        paddingY: "4px",
+                        paddingY: "3px",
+                        color: 'white'
                       }}>
                       <FormControlLabel
                         control={
@@ -853,7 +855,7 @@ const MainScreen = () => {
           <Grid
             size={{xs: 12}}
             // backgroundColor={"green"}
-            height={"70vh"}
+            height={"68vh"}
             sx={{border: "12px solid skyblue", borderRadius: "16px"}}>
             <div
               style={{
@@ -880,16 +882,27 @@ const MainScreen = () => {
                 style={{
                   flex: "1",
                   backgroundColor: "white",
-                  padding: "16px",
+                  
                   display: "flex",
                   flexDirection: "column",
                   height: "100%",
                 }}>
-                <Typography
+                  <Box sx={{
+                  backgroundColor: '#1B4965',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: "10px",
+                  
+                  }}>
+                    <Typography
                   variant="h6"
-                  sx={{marginBottom: 2, textAlign: "center"}}>
+                  sx={{textAlign: "center", color: 'white'}}>
                   Message Templates
                 </Typography>
+
+                  </Box>
+                
                 <Divider />
                 <div
                   className="flex flex-col gap-3"
@@ -898,6 +911,7 @@ const MainScreen = () => {
                     overflowY: "auto",
                     marginBottom: "16px",
                     marginTop: "16px",
+                    padding: "16px",
                   }}>
                   {msgTemplates.map((template, index) => (
                     <Paper
@@ -1068,6 +1082,7 @@ const MainScreen = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          marginTop: '-80px',
         }}
       >
       <Paper 
@@ -1076,7 +1091,7 @@ const MainScreen = () => {
         boxShadow: 24,
         p: 0,
         borderRadius: 2,
-        width: '70%',
+        width: '60%',
         background: '#1e4976',
       
       }}>
@@ -1088,10 +1103,10 @@ const MainScreen = () => {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between', 
-    padding: '12px',
-    marginTop: '20px' 
+    padding: '10px',
+    marginTop: '15px' 
   }}>
-  <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold', margin: '0 auto' }}>
+  <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold', margin: '0 auto' }}>
     CONNECT TO OPERATION CENTER
   </Typography>
   
@@ -1100,10 +1115,10 @@ const MainScreen = () => {
     sx={{ 
       color: 'white',
       padding: '2px',
-      border: '3px solid white', 
+      border: '2px solid white', 
       borderRadius: '50%',
       '& .MuiSvgIcon-root': { 
-        fontSize: '20px', 
+        fontSize: '18px', 
       }
     }}
     aria-label="close"
@@ -1116,7 +1131,7 @@ const MainScreen = () => {
       <Box
         sx={{
           background: '#1e4976',
-          p: '6px 0 6px 0',
+          p: '5px 0 5px 0',
           display: 'flex',
           height: '100%',
           borderRadius: '0 0 8px 8px',
@@ -1126,45 +1141,43 @@ const MainScreen = () => {
           sx={{ 
           width: '50%',
           borderRight: '1px solid white',
-          padding: 4,
+          padding: 3,
           boxSizing: 'border-box'
         }}
         >
         <div style={{
         display: 'flex',
-        gap: '10px',
+        gap: '9px',
         }}>
         <div>
         <Avatar 
           src={Icon}
-          sx={{ width: 96, height: 96 }}
+          sx={{ width: 80, height: 80 }}
           alt={Icon}
         />
         </div>
         <div style={{
-        // backgroundColor: 'green',
         padding: '4px',
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'start',
         flexDirection: 'column',
         }}>
-        <Typography variant="h4" sx={{ color: 'white', fontWeight: 'bold' }}>
+        <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>
           MEDICAL CALL
         </Typography>
-        <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold' }}>
+        <Typography variant="subtitle1" sx={{ color: 'white', fontWeight: 'bold' }}>
           A.S Fortuna St, Mandaue City
         </Typography>
         </div>
         </div>
         <div style={{
-        // backgroundColor: 'green',
-        padding: '20px',
+        padding: '15px',
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center'
         }}>
-        <Typography variant="h5" sx={{ color: '#ef5350', fontWeight: 'bold' }}>
+        <Typography variant="h6" sx={{ color: '#ef5350', fontWeight: 'bold' }}>
           NEED AMBULANCE
         </Typography>
         </div>
@@ -1179,10 +1192,11 @@ const MainScreen = () => {
             value={customIncidentType}
             onChange={(e) => setCustomIncidentType(e.target.value)}
             variant="outlined"
+            size="small"
             sx={{ 
-              mb: 2,
+              mb: 1,
               backgroundColor: 'white',
-              borderRadius: 2,
+              borderRadius: 1,
             }}
           />
         ) : (
@@ -1195,10 +1209,11 @@ const MainScreen = () => {
               setModalIncident(e.target.value);
             }}
             variant="outlined"
+            size="small"
             sx={{ 
-              mb: 2,
+              mb: 1,
               backgroundColor: 'white',
-              borderRadius: 2,
+              borderRadius: 1,
             }}
             SelectProps={{
               native: true,
@@ -1248,14 +1263,15 @@ const MainScreen = () => {
         </Typography>
         <TextField
           multiline
-          rows={4}
+          rows={3}
           fullWidth
           value={modalIncidentDescription}
           onChange={(e) => setModalIncidentDescription(e.target.value)}
           variant="outlined"
+          size="small"
           sx={{ 
             backgroundColor: 'white',
-            borderRadius: 2,
+            borderRadius: 1,
           }}
         />
         </div>
@@ -1266,43 +1282,45 @@ const MainScreen = () => {
   sx={{ 
     flex: 1,
     borderLeft: '1px solid white',
-    p: 4,
+    p: 2,
   }}
 >
-  <div style={{background: '#f5f5f5', padding: '20px', borderRadius: '8px'}}>
-    <h2>Available Operation Center</h2>
+  <div style={{background: '#f5f5f5', padding: '10px', borderRadius: '6px'}}>
+    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 1 }}>Available Operation Center</Typography>
     
-    <div style={{display: 'flex', marginBottom: '15px'}}>
-      <input type="text" placeholder="Search" style={{flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid #ccc'}} />
-      <button style={{marginLeft: '10px', padding: '8px 15px', background: '#1e5a71', color: 'white', border: 'none', borderRadius: '4px'}}>Search</button>
+    <div style={{display: 'flex', marginBottom: '10px'}}>
+      <input type="text" placeholder="Search" style={{flex: 1, padding: '6px', borderRadius: '4px', border: '1px solid #ccc'}} />
+      <button style={{marginLeft: '8px', padding: '6px 10px', background: '#1e5a71', color: 'white', border: 'none', borderRadius: '4px'}}>Search</button>
     </div>
     
-    {lguUsers.map((user) => (
-      <div key={user._id} style={{display: 'flex', alignItems: 'center', padding: '10px', borderBottom: '1px solid #eee', marginBottom: '5px'}}>
-        <div style={{flex: 1}}>
-          <div>{user.firstName} {user.lastName}</div>
+    <div style={{maxHeight: '200px', overflowY: 'auto'}}>
+      {lguUsers.map((user) => (
+        <div key={user._id} style={{display: 'flex', alignItems: 'center', padding: '6px', borderBottom: '1px solid #eee', marginBottom: '3px'}}>
+          <div style={{flex: 1}}>
+            <div style={{fontSize: '14px'}}>{user.firstName} {user.lastName}</div>
+          </div>
+          <div style={{marginRight: '10px', textAlign: 'right'}}>
+            <div style={{fontSize: '12px'}}>13 Min</div>
+            <div style={{fontSize: '12px'}}>2.3 KM</div>
+          </div>
+          <button 
+            onClick={() => handleConnect(user)}
+            style={{padding: '4px 8px', background: '#1e5a71', color: 'white', border: 'none', borderRadius: '4px', fontSize: '12px'}}
+          >
+            Connect
+          </button>
         </div>
-        <div style={{marginRight: '15px', textAlign: 'right'}}>
-          <div>13 Min</div>
-          <div>2.3 KM</div>
+      ))}
+      
+      {lguUsers.length === 0 && (
+        <div style={{textAlign: 'center', padding: '10px', color: '#666', fontSize: '14px'}}>
+          No LGU users available
         </div>
-        <button 
-          onClick={() => handleConnect(user)}
-          style={{padding: '8px 15px', background: '#1e5a71', color: 'white', border: 'none', borderRadius: '4px'}}
-        >
-          Connect
-        </button>
-      </div>
-    ))}
+      )}
+    </div>
     
-    {lguUsers.length === 0 && (
-      <div style={{textAlign: 'center', padding: '20px', color: '#666'}}>
-        No LGU users available
-      </div>
-    )}
-    
-    <div style={{textAlign: 'center', marginTop: '10px'}}>
-      <button style={{background: 'none', border: 'none', color: '#1e5a71'}}>More</button>
+    <div style={{textAlign: 'center', marginTop: '6px'}}>
+      <button style={{background: 'none', border: 'none', color: '#1e5a71', fontSize: '14px'}}>More</button>
     </div>
   </div>
 </Box>

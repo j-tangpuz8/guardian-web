@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { StreamChat } from 'stream-chat';
 import { Chat } from 'stream-chat-react';
+import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 import config from "./config";
 import Login from "./pages/Login";
 import StandBy from "./pages/StandBy";
@@ -13,6 +14,36 @@ import LGUStatus from "./pages/LGUStatus";
 import LGUMain from "./pages/LGUMain";
 import MapView from "./pages/MapView";
 import ResponderMap from "./pages/ResponderMap";
+
+// Create global theme with Verdana as default font
+const theme = createTheme({
+  typography: {
+    fontFamily: 'Verdana, sans-serif',
+  },
+  components: {
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          fontFamily: 'Verdana, sans-serif',
+        },
+      },
+    },
+    MuiInputBase: {
+      styleOverrides: {
+        root: {
+          fontFamily: 'Verdana, sans-serif',
+        },
+      },
+    },
+    MuiTypography: {
+      styleOverrides: {
+        root: {
+          fontFamily: 'Verdana, sans-serif',
+        },
+      },
+    },
+  },
+});
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -70,39 +101,41 @@ function App() {
   }
 
   return (
-    <main>
-      {client ? (
-        <Chat client={client}>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <main>
+        {client ? (
+          <Chat client={client}>
+            <Routes>
+              <Route 
+                path="/" 
+                element={
+                  isAuthenticated 
+                    ? (userRole === 'LGU' 
+                        ? <Navigate to="/lgu-main" replace /> 
+                        : <Navigate to="/status" replace />)
+                    : <Login />
+                } 
+              />
+              <Route path="/standby" element={<StandBy />} />
+              <Route path="/main/:incidentId" element={isAuthenticated ? <MainScreen /> : <Navigate to="/" replace />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/call" element={isAuthenticated ? <Calls /> : <Navigate to="/" replace />} />
+              <Route path="/status" element={isAuthenticated ? <Status /> : <Navigate to="/" replace />} />
+              <Route path="/lgu-main" element={isAuthenticated ? <LGUMain /> : <Navigate to="/" replace />} />
+              <Route path="/map" element={isAuthenticated ? <MapView /> : <Navigate to="/" replace />} />
+              <Route path="/responder-map" element={isAuthenticated ? <ResponderMap /> : <Navigate to="/" replace />} />
+            </Routes>
+          </Chat>
+        ) : (
           <Routes>
-            <Route 
-              path="/" 
-              element={
-                isAuthenticated 
-                  ? (userRole === 'LGU' 
-                      ? <Navigate to="/lgu-main" replace /> 
-                      : <Navigate to="/status" replace />)
-                  : <Login />
-              } 
-            />
-            <Route path="/standby" element={<StandBy />} />
-            <Route path="/main/:incidentId" element={isAuthenticated ? <MainScreen /> : <Navigate to="/" replace />} />
+            <Route path="/" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/call" element={isAuthenticated ? <Calls /> : <Navigate to="/" replace />} />
-            <Route path="/status" element={isAuthenticated ? <Status /> : <Navigate to="/" replace />} />
-            <Route path="/lgu-main" element={isAuthenticated ? <LGUMain /> : <Navigate to="/" replace />} />
-            <Route path="/map" element={isAuthenticated ? <MapView /> : <Navigate to="/" replace />} />
-            <Route path="/responder-map" element={isAuthenticated ? <ResponderMap /> : <Navigate to="/" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </Chat>
-      ) : (
-        <Routes>
-          
-          <Route path="/" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      )}
-    </main>
+        )}
+      </main>
+    </ThemeProvider>
   );
 }
 

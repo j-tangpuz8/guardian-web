@@ -14,15 +14,13 @@ import {
   User,
 } from "@stream-io/video-react-sdk";
 // import CallContainer from "../components/CallContainer";
-import avatarImg from "../assets/images/user.png";
-import {useEffect, useState, useCallback} from "react";
-import {useNavigate, useLocation} from "react-router-dom";
+
+import {useEffect, useState} from "react";
+import {useNavigate} from "react-router-dom";
 import config from "../config";
 import "@stream-io/video-react-sdk/dist/css/styles.css";
-import all from "../utils/Responders";
-import {Button, Paper, Typography} from "@mui/material";
-import WarningIcon from "@mui/icons-material/Warning";
-import { RingingCall } from "../components/RingingCall";
+import "../components/Calls.css"
+
 
 const userStr = localStorage.getItem("user");
 const userStr2 = userStr ? JSON.parse(userStr) : null;
@@ -97,7 +95,7 @@ export default function Calls() {
   }
 
   return (
-    <div className="flex h-screen bg-[#1B4965] p-5 sm:gap-10 md:gap-2">
+    <div className="flex h-screen bg-[#1B4965] p-5 sm:gap-10 md:gap-2 text-white">
       {/* <div className="w-[350px] bg-gray-300 rounded-lg">
         <div className="flex items-center gap-4 p-5">
           <div className="bg-green-200 p-2 rounded-full border-1">
@@ -220,42 +218,127 @@ export const VideoCall = ({ client }: { client: StreamVideoClient }) => {
   const navigate = useNavigate();
 
   const {
-    useCallCallingState,
     useParticipantCount,
-    useLocalParticipant,
-    useRemoteParticipants,
+ 
   } = useCallStateHooks();
-  const callingState = useCallCallingState();
+
   const participantCount = useParticipantCount();
-  const localParticipant = useLocalParticipant();
-  const remoteParticipants = useRemoteParticipants();
+
 
   const handleLeaveCall = async () => {
     try {
       if (call) {
-        await call.leave();
-        if (client) {
-          await client.disconnectUser();
-        }
-        navigate("/main");
+        // Cleanup function to ensure all resources are properly released
+        const cleanup = async () => {
+          try {
+            // First leave the call
+            await call.leave();
+            console.log("Successfully left the call");
+            
+            // Aggressive approach to stop ALL media tracks
+            try {
+              // Method 1: Stop camera and microphone through the Stream SDK
+              if (call.camera) {
+                await call.camera.disable();
+                console.log("Camera disabled through SDK");
+              }
+              
+              if (call.microphone) {
+                await call.microphone.disable();
+                console.log("Microphone disabled through SDK");
+              }
+              
+              // Method 2: Get all tracks from all video/audio elements and stop them
+              const mediaElements = document.querySelectorAll('video, audio');
+              let tracksCount = 0;
+              
+              mediaElements.forEach(element => {
+                const htmlElement = element as HTMLMediaElement;
+                if (htmlElement.srcObject instanceof MediaStream) {
+                  const stream = htmlElement.srcObject as MediaStream;
+                  stream.getTracks().forEach(track => {
+                    track.stop();
+                    tracksCount++;
+                  });
+                  htmlElement.srcObject = null;
+                }
+              });
+              
+              console.log(`Stopped ${tracksCount} tracks from media elements`);
+              
+              // Method 3: Force a permission reset by getting and immediately stopping new streams
+              const newStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+                .catch(e => {
+                  console.log("Could not get new media stream:", e);
+                  return null;
+                });
+                
+              if (newStream) {
+                newStream.getTracks().forEach(track => {
+                  track.stop();
+                });
+                console.log("New test stream stopped to force permissions reset");
+              }
+              
+              // Attempt to release user media by enumeration
+              const devices = await navigator.mediaDevices.enumerateDevices()
+                .catch(e => {
+                  console.log("Could not enumerate devices:", e);
+                  return [];
+                });
+                
+              console.log(`Found ${devices.length} media devices to check`);
+              
+              // Extra safeguard: explicitly clear any active streams in the browser
+              if (typeof window !== 'undefined') {
+                // Attempt to reset permission state
+                if (navigator.permissions && navigator.permissions.query) {
+                  const camPermission = await navigator.permissions.query({ name: 'camera' as PermissionName })
+                    .catch(() => null);
+                  const micPermission = await navigator.permissions.query({ name: 'microphone' as PermissionName })
+                    .catch(() => null);
+                    
+                  console.log("Camera permission state:", camPermission?.state);
+                  console.log("Microphone permission state:", micPermission?.state);
+                }
+              }
+            } catch (mediaError) {
+              console.error("Could not stop all media tracks:", mediaError);
+            }
+            
+            // Disconnect the client
+            if (client) {
+              await client.disconnectUser();
+              console.log("User disconnected from video client");
+            }
+            
+            // Close the window
+            window.close();
+            
+            // Navigate as fallback if window doesn't close
+            navigate("/main");
+          } catch (error) {
+            console.error("Error during cleanup:", error);
+            // Try to navigate anyway as a fallback
+            navigate("/main");
+          }
+        };
+        
+        // Execute the cleanup
+        await cleanup();
       }
     } catch (error) {
       console.error("Error leaving call:", error);
+      // Navigate as a failsafe
+      navigate("/main");
     }
   };
 
-
-  const handleRemoveParticipant = async () => {
-    try {
-      await call?.unblockUser("oxup2cku8bg");
-    } catch (error) {
-      console.error("Error removing participant:", error);
-    }
-  };
 
   return (
-    <StreamTheme>
-    <SpeakerLayout participantsBarPosition="bottom" />
+    <div className="flex-1 h-full">
+      <StreamTheme>
+    <SpeakerLayout participantsBarPosition="top" />
     <div className="flex justify-center items-center gap-5 mt-4">
       <SpeakingWhileMutedNotification>
         <ToggleAudioPublishingButton />
@@ -264,10 +347,13 @@ export const VideoCall = ({ client }: { client: StreamVideoClient }) => {
       <CancelCallButton 
         onClick={handleLeaveCall}
       />
-      <Typography variant="h6" color="white">
+      {/* <Typography variant="h6" color="white">
         Participants in this call: {participantCount}
-      </Typography>
+      </Typography> */}
     </div>
   </StreamTheme>
+
+    </div>
+    
   );
 };

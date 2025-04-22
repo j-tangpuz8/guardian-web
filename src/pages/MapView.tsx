@@ -14,6 +14,7 @@ import crimeIcon from '../assets/images/Police.png';
 import ambulanceIcon from '../assets/images/ambulance.png';
 import firetruckIcon from '../assets/images/firetruck.png';
 import policecarIcon from '../assets/images/policecar.png';
+import hospitalIcon from '../assets/images/hospital.png';
 import avatarImg from "../assets/images/user.png";
 import { getAddressFromCoordinates } from '../utils/geocoding';
 import { StreamChat } from 'stream-chat';
@@ -36,6 +37,10 @@ const MapView = () => {
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [responderCoords, setResponderCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [incidentCoords, setIncidentCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [hospitalCoords, setHospitalCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [selectedHospital, setSelectedHospital] = useState<string | null>(null);
+  const [hospitalName, setHospitalName] = useState<string>('');
+  const [hospitalAddress, setHospitalAddress] = useState<string>('');
   const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -65,6 +70,7 @@ const MapView = () => {
   const [responderAddress, setResponderAddress] = useState<string>('');
   const [responderStatus, setResponderStatus] = useState<string>('medicalFacility');
   const [responderType, setResponderType] = useState<string>('ambulance');
+  const [destinationType, setDestinationType] = useState<string>('incident'); // 'incident' or 'hospital'
 
   const getIncidentIcon = useCallback((type: string): google.maps.Icon | undefined => {
     if (!isGoogleLoaded) return undefined;
@@ -113,6 +119,16 @@ const MapView = () => {
 
     return {
       url: iconUrl,
+      scaledSize: new google.maps.Size(40, 40),
+      anchor: new google.maps.Point(20, 40)
+    };
+  }, [isGoogleLoaded]);
+
+  const getHospitalIcon = useCallback((): google.maps.Icon | undefined => {
+    if (!isGoogleLoaded) return undefined;
+
+    return {
+      url: hospitalIcon,
       scaledSize: new google.maps.Size(40, 40),
       anchor: new google.maps.Point(20, 40)
     };
@@ -174,6 +190,93 @@ const MapView = () => {
     }
   }, [isGoogleLoaded]);
 
+  // Poll for updates to check if selectedHospital changes
+  useEffect(() => {
+    const pollInterval = setInterval(async () => {
+      if (incidentId) {
+        try {
+          const response = await fetch(`${config.PERSONAL_API}/incidents/${incidentId}`);
+          if (response.ok) {
+            const data = await response.json();
+            
+            if (data.selectedHospital && data.selectedHospital !== selectedHospital) {
+              setSelectedHospital(data.selectedHospital);
+              
+              // Fetch hospital details if we have a new selected hospital
+              try {
+                const hospitalResponse = await fetch(`${config.PERSONAL_API}/hospitals/${data.selectedHospital}`);
+                if (hospitalResponse.ok) {
+                  const hospitalData = await hospitalResponse.json();
+                  
+                  if (hospitalData.coordinates) {
+                    const hospitalCoords = {
+                      lat: Number(hospitalData.coordinates.lat),
+                      lng: Number(hospitalData.coordinates.lng)
+                    };
+                    setHospitalCoords(hospitalCoords);
+                    setHospitalName(hospitalData.name || '');
+                    setHospitalAddress(hospitalData.address || '');
+                    setDestinationType('hospital');
+                  }
+                }
+              } catch (error) {
+                console.error('Error fetching hospital data:', error);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error polling for updates:', error);
+        }
+      }
+    }, 5000); // Poll every 5 seconds
+    
+    return () => clearInterval(pollInterval);
+  }, [incidentId, selectedHospital]);
+
+  // Add a new polling mechanism to check for responder coordinates updates
+  useEffect(() => {
+    const responderPollInterval = setInterval(async () => {
+      if (incidentId) {
+        try {
+          const response = await fetch(`${config.PERSONAL_API}/incidents/${incidentId}`);
+          if (response.ok) {
+            const data = await response.json();
+            
+            if (data.responderCoordinates) {
+              const newResponderCoords = {
+                lat: Number(data.responderCoordinates.lat),
+                lng: Number(data.responderCoordinates.lon)
+              };
+              
+              // Only update if coordinates have changed
+              if (!responderCoords || 
+                  responderCoords.lat !== newResponderCoords.lat || 
+                  responderCoords.lng !== newResponderCoords.lng) {
+                
+                setResponderCoords(newResponderCoords);
+                
+                // Update responder address
+                try {
+                  const responderFormattedAddress = await getAddressFromCoordinates(
+                    newResponderCoords.lat.toString(),
+                    newResponderCoords.lng.toString()
+                  );
+                  setResponderAddress(responderFormattedAddress);
+                } catch (error) {
+                  console.error('Error fetching responder address:', error);
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error polling for responder updates:', error);
+        }
+      }
+    }, 5000); // Poll every 5 seconds
+    
+    return () => clearInterval(responderPollInterval);
+  }, [incidentId, responderCoords]);
+
   useEffect(() => {
     const fetchIncidentData = async () => {
       const urlParams = new URLSearchParams(window.location.search);
@@ -201,6 +304,32 @@ const MapView = () => {
           
           if (data.responderStatus) {
             setResponderStatus(data.responderStatus);
+          }
+
+          // Check if there's a selected hospital
+          if (data.selectedHospital) {
+            setSelectedHospital(data.selectedHospital);
+            
+            // Fetch hospital details
+            try {
+              const hospitalResponse = await fetch(`${config.PERSONAL_API}/hospitals/${data.selectedHospital}`);
+              if (hospitalResponse.ok) {
+                const hospitalData = await hospitalResponse.json();
+                
+                if (hospitalData.coordinates) {
+                  const hospitalCoords = {
+                    lat: Number(hospitalData.coordinates.lat),
+                    lng: Number(hospitalData.coordinates.lng)
+                  };
+                  setHospitalCoords(hospitalCoords);
+                  setHospitalName(hospitalData.name || '');
+                  setHospitalAddress(hospitalData.address || '');
+                  setDestinationType('hospital');
+                }
+              }
+            } catch (error) {
+              console.error('Error fetching hospital data:', error);
+            }
           }
 
           if (data.incidentDetails?.coordinates) {
@@ -301,10 +430,16 @@ const MapView = () => {
   }, []);
 
   useEffect(() => {
-    if (incidentCoords && isGoogleLoaded) {
-      fetchDirections(responderCoords, incidentCoords);
+    if (isGoogleLoaded && responderCoords) {
+      if (destinationType === 'hospital' && hospitalCoords) {
+        // Route from responder to hospital if a hospital is selected
+        fetchDirections(responderCoords, hospitalCoords);
+      } else if (incidentCoords) {
+        // Default route from responder to incident
+        fetchDirections(responderCoords, incidentCoords);
+      }
     }
-  }, [responderCoords, incidentCoords, fetchDirections, isGoogleLoaded]);
+  }, [responderCoords, incidentCoords, hospitalCoords, destinationType, fetchDirections, isGoogleLoaded]);
 
   useEffect(() => {
     const initChatClient = async () => {
@@ -423,6 +558,14 @@ const MapView = () => {
             />
           )}
           
+          {hospitalCoords && (
+            <Marker
+              position={hospitalCoords}
+              icon={getHospitalIcon()}
+              title={hospitalName || "Hospital Location"}
+            />
+          )}
+          
           {directions && responderCoords && (
             <DirectionsRenderer
               directions={directions}
@@ -437,7 +580,7 @@ const MapView = () => {
             />
           )}
           
-          {/* {infoWindowPosition && routeInfo && responderCoords && (
+          {infoWindowPosition && routeInfo && (
             <OverlayView
               position={infoWindowPosition}
               mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
@@ -461,208 +604,222 @@ const MapView = () => {
                 <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.875rem', margin: 0 }}>
                   {routeInfo.distance}
                 </Typography>
+                <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.875rem', margin: 0 }}>
+                  {destinationType === 'hospital' ? 'To Hospital' : 'To Incident'}
+                </Typography>
               </div>
             </OverlayView>
-          )} */}
+          )}
         </GoogleMap>
       </LoadScript>
 
-      <Grid container spacing={1}>
-        <Grid size={{xs: 12}}
-        sx = {{
-          position: "absolute",
-          bottom: "0",
-          padding: "0.7rem",
-          display: "flex",
-          gap: "1rem"
-        }}>
-          <Grid size={{md: 9}}
-          sx = {{
+      <Box sx={{ 
+        position: 'absolute', 
+        bottom: 0, 
+        width: '100%', 
+        display: 'flex',
+        padding: '0.7rem',
+        gap: '1rem'
+      }}>
+        <Box sx={{ 
+          flex: '3',
           backgroundColor: "rgba(27, 73, 101, 0.1)",
-          padding: "2",
+          padding: "2px",
           borderRadius: '10px'
         }}>
           <Box sx={{ 
-        backgroundColor: 'rgba(29, 51, 84, 0.9)',
-        borderRadius: 2,
-        color: 'white',
-        padding: 0.7,
-        display: 'flex',
-        alignItems: 'center',
-        zIndex: 1000,
-        boxShadow: '0 2px 10px rgba(0,0,0,0.5)'
-      }}>
-        <Box sx={{ 
-          display: 'flex', 
-          flexDirection: 'row',
-          alignItems: 'center', 
-          justifyContent: 'start',
-          marginRight: 2,
-          width: '33%',
-          borderRight: '1px solid rgba(255,255,255,0.3)',
-        }}>
-          <Box 
-            component="img" 
-            src={getIncidentIconUrl(incidentType)}
-            alt="Emergency Icon"
-            sx={{ width: 70, height: 70}}
-          />
-          <Box sx ={{
+            backgroundColor: 'rgba(29, 51, 84, 0.9)',
+            borderRadius: 2,
+            color: 'white',
+            padding: 0.7,
             display: 'flex',
-            flexDirection: 'column',
-            marginLeft: '1rem'
+            alignItems: 'center',
+            zIndex: 1000,
+            boxShadow: '0 2px 10px rgba(0,0,0,0.5)'
           }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 'bold', textTransform: 'uppercase' }}>
-            ID: {incidentType.toUpperCase()}-{incidentId?.substring(5,9)}
-          </Typography>
-          <Typography variant="caption" sx={{ color: '#4caf50', fontWeight: 'bold' }}>
-            {incidentType ? `${incidentType.toUpperCase()} CALL` : ""}
-          </Typography>
-          <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>
-            {address || "Loading address..."}
-          </Typography>
-          <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>
-            Coordinates: {coordinates ? coordinates.lat + " " + coordinates.long : ""}
-          </Typography>
-          </Box>
-        </Box>
+            {/* Incident Info */}
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: 'row',
+              alignItems: 'center', 
+              justifyContent: 'start',
+              marginRight: 2,
+              width: '33%',
+              borderRight: '1px solid rgba(255,255,255,0.3)',
+            }}>
+              <Box 
+                component="img" 
+                src={getIncidentIconUrl(incidentType)}
+                alt="Emergency Icon"
+                sx={{ width: 70, height: 70}}
+              />
+              <Box sx ={{
+                display: 'flex',
+                flexDirection: 'column',
+                marginLeft: '1rem'
+              }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', textTransform: 'uppercase' }}>
+                  ID: {incidentType.toUpperCase()}-{incidentId?.substring(5,9)}
+                </Typography>
+                <Typography variant="caption" sx={{ color: '#4caf50', fontWeight: 'bold' }}>
+                  {incidentType ? `${incidentType.toUpperCase()} CALL` : ""}
+                </Typography>
+                <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>
+                  {address || "Loading address..."}
+                </Typography>
+                <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>
+                  Coordinates: {coordinates ? coordinates.lat + " " + coordinates.long : ""}
+                </Typography>
+              </Box>
+            </Box>
 
-        <Box sx={{ 
-          display: 'flex', 
-          flexDirection: 'row',
-          alignItems: 'center', 
-          justifyContent: 'start',
-          marginRight: 2,
-          width: '33%',
-          borderRight: '1px solid rgba(255,255,255,0.3)',
-        }}>
-          <Box 
-            component="img" 
-            src={avatarImg}
-            alt="Emergency Icon"
-            sx={{ width: 70, height: 70, borderRadius: '50%'}}
-          />
-          <Box sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            marginLeft: '1rem'
-          }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-            {userData ? `${userData.firstName} ${userData.lastName}` : 'Loading...'}
-          </Typography>
-          <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>
-            {userData ? userData.phone : 'Loading...'}
-          </Typography>
-          <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>
-            GuardianPH Opcen
-          </Typography>
-          </Box>
-        </Box>
+            {/* User Info */}
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: 'row',
+              alignItems: 'center', 
+              justifyContent: 'start',
+              marginRight: 2,
+              width: '33%',
+              borderRight: '1px solid rgba(255,255,255,0.3)',
+            }}>
+              <Box 
+                component="img" 
+                src={avatarImg}
+                alt="Emergency Icon"
+                sx={{ width: 70, height: 70, borderRadius: '50%'}}
+              />
+              <Box sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                marginLeft: '1rem'
+              }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                  {userData ? `${userData.firstName} ${userData.lastName}` : 'Loading...'}
+                </Typography>
+                <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>
+                  {userData ? userData.phone : 'Loading...'}
+                </Typography>
+                <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>
+                  GuardianPH Opcen
+                </Typography>
+              </Box>
+            </Box>
 
-        <Box sx={{ 
-          display: 'flex', 
-          flexDirection: 'row',
-          alignItems: 'center', 
-          justifyContent: 'start',
-          marginRight: 2,
-          width: '33%',
-        }}>
-          <Box 
-            component="img" 
-            src={getIncidentIcon2(responderType)?.url}
-            alt="Ambulance" 
-            sx={{ width: 70, height: 70, marginBottom: 1 }} 
-          />
-          <Box sx ={{
-            display: 'flex',
-            flexDirection: 'column',
-            marginLeft: '1rem'
-          }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-            {responderData ? `${responderData.firstName} ${responderData.lastName}` : 'Loading...'}
-          </Typography>
-          <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>
-            {responderAddress || "Loading address..."}
-          </Typography>
+            {/* Destination Info */}
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: 'row',
+              alignItems: 'center', 
+              justifyContent: 'start',
+              marginRight: 2,
+              width: '33%',
+            }}>
+              <Box 
+                component="img" 
+                src={destinationType === 'hospital' ? getHospitalIcon()?.url : getIncidentIcon2(responderType)?.url}
+                alt={destinationType === 'hospital' ? "Hospital" : "Responder"} 
+                sx={{ width: 70, height: 70, marginBottom: 1 }} 
+              />
+              <Box sx ={{
+                display: 'flex',
+                flexDirection: 'column',
+                marginLeft: '1rem'
+              }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                  {destinationType === 'hospital' 
+                    ? hospitalName || 'Selected Hospital'
+                    : (responderData ? `${responderData.firstName} ${responderData.lastName}` : 'Loading...')}
+                </Typography>
+                <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>
+                  {destinationType === 'hospital' 
+                    ? hospitalAddress || "Hospital Address" 
+                    : responderAddress || "Loading address..."}
+                </Typography>
+                {destinationType === 'hospital' && (
+                  <Typography variant="caption" sx={{ fontSize: '0.7rem', color: '#4caf50', fontWeight: 'bold' }}>
+                    ROUTING TO HOSPITAL
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+            
+            <IconButton 
+              sx={{ 
+                position: 'absolute', 
+                top: 0, 
+                right: 0, 
+                color: 'white', 
+                backgroundColor: 'rgba(255,255,255,0.1)',
+                '&:hover': {
+                  backgroundColor: 'rgba(255,255,255,0.2)'
+                },
+                width: 30,
+                height: 30,
+                padding: 0
+              }}
+            >
+              <Box component="span" sx={{ fontSize: '1.2rem', fontWeight: 'bold' }}>×</Box>
+            </IconButton>
           </Box>
         </Box>
         
-        <IconButton 
-          sx={{ 
-            position: 'absolute', 
-            top: 0, 
-            right: 0, 
-            color: 'white', 
-            backgroundColor: 'rgba(255,255,255,0.1)',
-            '&:hover': {
-              backgroundColor: 'rgba(255,255,255,0.2)'
-            },
-            width: 30,
-            height: 30,
-            padding: 0
-          }}
-        >
-          <Box component="span" sx={{ fontSize: '1.2rem', fontWeight: 'bold' }}>×</Box>
-        </IconButton>
-      </Box>
-      </Grid>
-      <Grid size={{md: 3}}
-      sx ={{
-      }}>
-        {chatClient && currentChannelId && lguStatus === 'connected' && (
-          <Box
-            sx={{
-              position: 'fixed',
-              bottom: 0,
-              right: 20,
-              width: '350px',
-              backgroundColor: 'white',
-              borderRadius: '10px 10px 0 0',
-              boxShadow: '0 -2px 10px rgba(0,0,0,0.1)',
-              transition: 'height 0.3s ease',
-              height: isChatExpanded ? '500px' : '50px',
-              overflow: 'hidden',
-              zIndex: 1000
-            }}
-          >
+        <Box sx={{ 
+          flex: '1',
+          position: 'relative',
+        }}>
+          {chatClient && currentChannelId && typeof lguStatus === 'string' && lguStatus === 'connected' && (
             <Box
-              onClick={() => setIsChatExpanded(!isChatExpanded)}
               sx={{
-                bgcolor: '#4a90e2',
-                color: 'white',
-                p: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                cursor: 'pointer',
+                position: 'absolute',
+                bottom: 0,
+                width: '100%',
+                backgroundColor: 'white',
+                borderRadius: '10px 10px 0 0',
+                boxShadow: '0 -2px 10px rgba(0,0,0,0.1)',
+                transition: 'height 0.3s ease',
+                height: isChatExpanded ? '500px' : '50px',
+                overflow: 'hidden',
+                zIndex: 1000
               }}
             >
-              <Typography sx={{ fontWeight: 'bold', textTransform: 'uppercase'  }}>
-                Channel ID: {incidentType.toUpperCase()}-{incidentId?.substring(5,9)}
-              </Typography>
-              {isChatExpanded ? <KeyboardArrowDown /> : <KeyboardArrowUp />}
-            </Box>
+              <Box
+                onClick={() => setIsChatExpanded(!isChatExpanded)}
+                sx={{
+                  bgcolor: '#4a90e2',
+                  color: 'white',
+                  p: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  cursor: 'pointer',
+                }}
+              >
+                <Typography sx={{ fontWeight: 'bold', textTransform: 'uppercase'  }}>
+                  Channel ID: {incidentType.toUpperCase()}-{incidentId?.substring(5,9)}
+                </Typography>
+                {isChatExpanded ? <KeyboardArrowDown /> : <KeyboardArrowUp />}
+              </Box>
 
-            <Box
-              sx={{
-                height: 'calc(100% - 40px)',
-                display: isChatExpanded ? 'block' : 'none'
-              }}
-            >
-              <Chat client={chatClient} theme="messaging light">
-              <Channel channel={chatClient.channel("messaging", currentChannelId)}>
-                  <Window>
-                    <MessageList />
-                    <MessageInput />
-                  </Window>
-                </Channel>
-              </Chat>
+              <Box
+                sx={{
+                  height: 'calc(100% - 40px)',
+                  display: isChatExpanded ? 'block' : 'none'
+                }}
+              >
+                <Chat client={chatClient} theme="messaging light">
+                <Channel channel={chatClient.channel("messaging", currentChannelId)}>
+                    <Window>
+                      <MessageList />
+                      <MessageInput />
+                    </Window>
+                  </Channel>
+                </Chat>
+              </Box>
             </Box>
-          </Box>
-        )}
-      </Grid>
-        </Grid>
-        </Grid>
+          )}
+        </Box>
+      </Box>
     </Box>
   );
 };
