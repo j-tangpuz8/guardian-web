@@ -348,7 +348,7 @@ export default function Status() {
           }}
           alt={user.name}
           />
-          <Button
+          {/* <Button
             variant="contained"
             onClick={handleLogout}
             sx={{
@@ -364,7 +364,7 @@ export default function Status() {
             }}
           >
             Logout
-          </Button>
+          </Button> */}
         <Paper elevation={3}
           sx={{ 
           padding: '0 4px 0 4px',

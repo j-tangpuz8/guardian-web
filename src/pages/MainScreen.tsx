@@ -658,11 +658,12 @@ const MainScreen = () => {
   const { icon } = getIncidentIcon(incidentType || 'general');
 
   return (
-    <div className="min-h-screen bg-[#1B4965] p-4">
+    <div className="h-screen bg-[#1B4965] p-5">
     {/* // <div className="h-screen max-h-screen bg-[#1B4965] overflow-hidden"> */}
-      <Container maxWidth="xl" sx={{height: "100%"}}>
+      <Container disableGutters={true} maxWidth={false} sx={{height: "100%"}}>
         <Grid container spacing={1}>
           <Grid size={{xs: 12}}
+          width={"100%"}
           // backgroundColor={"red"} 
           height={"18vh"}>
             <Grid container spacing={8}>

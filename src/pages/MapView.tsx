@@ -604,9 +604,9 @@ const MapView = () => {
                 <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.875rem', margin: 0 }}>
                   {routeInfo.distance}
                 </Typography>
-                <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.875rem', margin: 0 }}>
+                {/* <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.875rem', margin: 0 }}>
                   {destinationType === 'hospital' ? 'To Hospital' : 'To Incident'}
-                </Typography>
+                </Typography> */}
               </div>
             </OverlayView>
           )}
@@ -715,11 +715,9 @@ const MapView = () => {
               marginRight: 2,
               width: '33%',
             }}>
-              <Box 
-                component="img" 
+              <img className='w-20 ml-3'
                 src={destinationType === 'hospital' ? getHospitalIcon()?.url : getIncidentIcon2(responderType)?.url}
-                alt={destinationType === 'hospital' ? "Hospital" : "Responder"} 
-                sx={{ width: 70, height: 70, marginBottom: 1 }} 
+                alt="Responder Vehicle" 
               />
               <Box sx ={{
                 display: 'flex',
