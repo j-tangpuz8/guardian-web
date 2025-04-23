@@ -693,7 +693,16 @@ const MainScreen = () => {
                   {/* <Typography sx={{fontWeight: "bold"}}>
                     {coordinates ? coordinates.lat + " " + coordinates.long : ""}
                   </Typography> */}
-                  <Typography sx={{}}>
+                  <Typography sx={{
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2, 
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    maxWidth: '250px',
+                    // backgroundColor: 'red'
+                  }}
+                  title={address || "Loading address..."}>
                     {address || "Loading address..."}
                   </Typography>
                   

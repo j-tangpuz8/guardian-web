@@ -44,7 +44,7 @@ export default function Status() {
   const { client } = useChatContext();
   const navigate = useNavigate();
   const [isInvisible, setIsInvisible] = useState(true);
-  const [openModal, setOpenModal] = useState(false);
+  const [openModal, setOpenModal] = useState(true);
   const [currentIncident, setCurrentIncident] = useState<Incident | null>(null);
   const [lastCheck, setLastCheck] = useState(Date.now());
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -455,7 +455,7 @@ export default function Status() {
                 elevation={3} 
                 className="shake_me"
                 sx={{ 
-                  width: '550px',
+                  width: '600px',
                   margin: '0 auto',
                   borderRadius: '20px',
                   overflow: 'hidden',
@@ -488,7 +488,17 @@ export default function Status() {
                     <Typography variant="h4" sx={{ color: 'white', fontWeight: 'bold' }}>
                       {currentIncident.incidentType.toUpperCase()} INCIDENT
                     </Typography>
-                    <Typography variant="body1" sx={{ color: 'white' }}>
+                    <Typography variant="body1" sx={{ 
+                      color: 'white',
+                      // backgroundColor: 'red',
+                      maxWidth: '300px',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2, 
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      }}
+                      title={address || "Loading address..."}>
                       {address || "Loading address..."}
                     </Typography>
                   </div>
@@ -501,16 +511,26 @@ export default function Status() {
                   alignItems: 'center'
                 }}>
                   <div>
-                    <Typography variant="h3" sx={{ color: 'white', fontWeight: 'bold' }}>
+                    <Typography variant="h4" sx={{ color: 'white', fontWeight: 'bold', maxWidth: '400px', }}>
                       {currentIncident.user.firstName.toUpperCase()} {currentIncident.user.lastName.toUpperCase()}
                     </Typography>
-                    <Typography variant="h6" sx={{ color: 'white' }}>
+                    <Typography variant="h6" sx={{ 
+                      color: 'white', 
+                      // backgroundColor: 'red',
+                      maxWidth: '390px',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2, 
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      }}
+                      title={address || "Loading address..."}>
                       {address || "Loading address..."}
                     </Typography>
                   </div>
                   <Avatar 
                     src={avatarImg}
-                    sx={{ width: 96, height: 96 }}
+                    sx={{ width: 120, height: 120 }}
                     alt={user.name}
                   />
                 </div>

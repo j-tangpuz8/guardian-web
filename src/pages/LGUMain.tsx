@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Modal, Paper, Typography, Button, Box, Avatar, Container } from '@mui/material';
 import avatarImg from "../assets/images/user.png";
 import GuardianIcon from "../assets/images/Guardian.png";
@@ -37,6 +37,13 @@ import {
 } from "@stream-io/video-react-sdk";
 import { CallPanel } from "../components/CallPanel";
 import { RingingCall } from "../components/RingingCall";
+import ambulanceIcon from '../assets/images/ambulance.png';
+import policecarIcon from '../assets/images/policecar.png';
+import firetruckIcon from '../assets/images/firetruck.png';
+import policeSound from '../assets/sounds/police.mp3';
+import fireSound from '../assets/sounds/fire.mp3';
+import ambulanceSound from '../assets/sounds/ambulance.mp3';
+import generalSound from '../assets/sounds/general.mp3';
 
 const getIncidentIcon = (incidentType: string) => {
     const type = incidentType?.toLowerCase() || '';
@@ -87,8 +94,51 @@ const IncidentCard = ({ incident, handleMapClick, handleCreateRingCall, handleSe
 
     const shortId = incident._id ? incident._id.substring(5, 9) : "";
 
+    // State for responder data
+    const [responderData, setResponderData] = useState<any>(null);
     
+    // Fetch responder data if incident has a responder
+    useEffect(() => {
+        const fetchResponderData = async () => {
+            if (!incident.responder) return;
+            
+            try {
+                const token = localStorage.getItem("token");
+                const response = await fetch(`${config.PERSONAL_API}/users/${incident.responder}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    setResponderData(data);
+                }
+            } catch (error) {
+                console.error("Error fetching responder data:", error);
+            }
+        };
+        
+        fetchResponderData();
+    }, [incident.responder]);
     
+    const getResponderIcon = (responderData: any) => {
+        if (!responderData) return ambulanceIcon;
+        
+        const type = responderData.type?.toLowerCase() || '';
+        const firstName = responderData.firstName?.toLowerCase() || '';
+        
+        if (type.includes('ambulance') || type.includes('medical') || firstName.includes('ambu')) {
+            return ambulanceIcon;
+        } else if (type.includes('fire') || firstName.includes('fire')) {
+            return firetruckIcon;
+        } else if (type.includes('police') || firstName.includes('police')) {
+            return policecarIcon;
+        }
+        
+        return ambulanceIcon; // Default
+    };
+
     return (
         <Paper
             elevation={3}
@@ -154,7 +204,7 @@ const IncidentCard = ({ incident, handleMapClick, handleCreateRingCall, handleSe
                 </Box>
             </Box>
             <Box sx={{
-                bgcolor: '#e8f5e9',
+                // bgcolor: '#e8f5e9',
                 p: 0.7,
                 display: 'flex',
                 alignItems: 'center',
@@ -162,7 +212,8 @@ const IncidentCard = ({ incident, handleMapClick, handleCreateRingCall, handleSe
             }}>
                 <Typography sx={{
                     color: '#2e7d32',
-                    fontSize: '0.8rem'
+                    fontSize: '0.8rem',
+                    fontWeight: 'bold'
                 }}>
                     RECEIVED : {formatReceivedTime(incident.receivedTime)}
                 </Typography>
@@ -197,22 +248,119 @@ const IncidentCard = ({ incident, handleMapClick, handleCreateRingCall, handleSe
                     LAPS TIME: {formatLapsTime(incident.timeLapsed)}
                 </Typography>
             </Box>
-            <Box sx={{
-                bgcolor: '#333',
-                color: 'white',
-                p: 0.8,
-                textAlign: 'center',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: '70px'
-            }}>
-                <Typography sx={{ 
-                    fontSize: '0.8rem'
+            {!incident.responder ? (
+                // Display "DISPATCH" if no responder is assigned
+                <Box sx={{
+                    bgcolor: '#333',
+                    color: 'white',
+                    p: 0.8,
+                    textAlign: 'center',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    height: '70px'
                 }}>
-                    DISPATCH
-                </Typography>
-            </Box>
+                    <Typography sx={{ 
+                        fontSize: '0.8rem'
+                    }}>
+                        DISPATCH
+                    </Typography>
+                </Box>
+            ) : (
+                // Display responder info if a responder is assigned
+                <Box sx={{
+                    p: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    height: '70px',
+                    bgcolor: '#4a90e2',
+                }}>
+                    {/* Blue responder name section */}
+                    <Box sx={{
+                        // bgcolor: '#4a90e2',
+                        color: 'white',
+                        p: 0.5,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 1,
+                        borderBottom: '2px solid grey'
+                    }}>
+                        <img 
+                            src={getResponderIcon(responderData)} 
+                            alt="Responder" 
+                            style={{ 
+                                width: '30px', 
+                                height: '18px',
+                                objectFit: 'contain'
+                            }} 
+                        />
+                        <Typography sx={{ 
+                            fontSize: '0.9rem',
+                            fontWeight: 'bold'
+                        }}>
+                            {responderData ? 
+                                `${responderData.firstName || ''} ${responderData.lastName || ''}`.trim() || 
+                                (responderData.type === "ambulance" ? "AMBU 123" : "RESPONDER") 
+                                : 
+                                incident.responder ? "RESPONDER" : "UNKNOWN"
+                            }
+                        </Typography>
+                    </Box>
+                    <Box sx={{
+                        display: 'flex',
+                        height: '100%'
+                    }}>
+
+                    <Box sx={{
+                        // backgroundColor: '#4a90e2',
+                        width: '50%',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center'
+                    }}>
+                    <Typography sx={{ 
+                                color: '#EE4B2B',
+                                fontWeight: 'bold',
+                                fontSize: '0.7rem',
+                                textAlign: 'center',
+                            }}>
+                                {incident.responderStatus ? incident.responderStatus.toUpperCase() : "ENROUTE"}
+                            </Typography>
+
+                    </Box>
+                   
+                        
+                            
+                            <Box sx={{
+                            borderLeft: '2px solid grey',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            // backgroundColor: 'blue',
+                            width: '50%',
+                            }}>
+                                <Typography sx={{ 
+                                    color: 'white',
+                                    fontSize: '0.7rem',
+                                    textAlign: 'center',
+                                }}>
+                                    13 min
+                                </Typography>
+                                <Typography sx={{ 
+                                    color: 'white',
+                                    fontSize: '0.7rem',
+                                    textAlign: 'center',
+                                }}>
+                                    2.3 km
+                                </Typography>
+                            </Box>
+                        </Box>
+
+                    </Box>
+                    
+            )}
             <Box sx={{
                 display: 'flex',
                 justifyContent: 'space-around',
@@ -259,7 +407,6 @@ const LGUMain = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const [currentTime, setCurrentTime] = useState(new Date());
-    const [openModal, setOpenModal] = useState(false);
     const [chatClient, setChatClient] = useState<StreamChat | null>(null);
     const [videoClient, setVideoClient] = useState<StreamVideoClient | null>(null);
     const [isChatExpanded, setIsChatExpanded] = useState(false);
@@ -273,9 +420,15 @@ const LGUMain = () => {
     const [isInvisible, setIsInvisible] = useState(true);
     const [showStatusModal, setShowStatusModal] = useState(false);
     const [connectingIncident, setConnectingIncident] = useState<any>(null);
+    const [lastIncidentId, setLastIncidentId] = useState<string | null>(null);
     const { client } = useChatContext();
     const [incidents, setIncidents] = useState<any[]>([]);
     const [activeCall, setActiveCall] = useState<string | null>(null);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+    const [audioEnabled, setAudioEnabled] = useState<boolean>(false);
+    const [pendingAudioType, setPendingAudioType] = useState<string | null>(null);
+    const [closingIncident, setClosingIncident] = useState<any>(null);
+    const [showClosingModal, setShowClosingModal] = useState(false);
     const handleSelectIncidentForChat = (channelId: string) => {
         setActiveCall(channelId);
         setIsChatExpanded(true);
@@ -301,9 +454,18 @@ const LGUMain = () => {
 
             const data = await response.json();
             
-            const connectedIncidents = data.filter((incident: any) => 
-                incident.lgu === userId && incident.lguStatus === 'connected'
-            );
+            console.log(`Total incidents: ${data.length}`);
+            
+            const connectedIncidents = data.filter((incident: any) => {
+                const matches = incident.lgu === userId && incident.lguStatus === 'connected' && !incident.isFinished;
+                if (incident.lgu === userId && incident.lguStatus === 'connected' && incident.isFinished) {
+                    console.log(`Filtering out finished incident: ${incident._id}`);
+                }
+                return matches;
+            });
+            
+            console.log(`After filtering, showing ${connectedIncidents.length} incidents`);
+            
             const processedIncidents = await Promise.all(
                 connectedIncidents.map(async (incident: any) => {
                     let address = "";
@@ -318,15 +480,18 @@ const LGUMain = () => {
                             address = "Unknown location";
                         }
                     }
+                    
                     const receivedTime = new Date(incident.acceptedAt || incident.createdAt);
                     const now = new Date();
                     const timeLapsed = Math.floor((now.getTime() - receivedTime.getTime()) / 1000);
                     
+                    // Keep all existing fields from the incident data
                     return {
                         ...incident,
                         address,
                         timeLapsed,
                         receivedTime: incident.acceptedAt || incident.createdAt
+                        // responderStatus is already in the incident object from the database
                     };
                 })
             );
@@ -338,6 +503,36 @@ const LGUMain = () => {
             setIsLoading(false);
         }
     };
+
+    useEffect(() => {
+        const style = document.createElement('style');
+        style.innerHTML = `
+          .shake_me {
+            animation: shake 0.5s;
+            animation-iteration-count: infinite;
+          }
+          
+          @keyframes shake {
+            0% {transform: translate(1px, 1px) rotate(0deg);}
+            10% {transform: translate(-1px, -2px) rotate(-1deg);}
+            20% {transform: translate(-3px, 0px) rotate(1deg);}
+            30% {transform: translate(3px, 2px) rotate(0deg);}
+            40% {transform: translate(1px, -1px) rotate(1deg);}
+            50% {transform: translate(-1px, 2px) rotate(-1deg);}
+            60% {transform: translate(-3px, 1px) rotate(0deg);}
+            70% {transform: translate(3px, 1px) rotate(-1deg);}
+            80% {transform: translate(-1px, -1px) rotate(1deg);}
+            90% {transform: translate(1px, 2px) rotate(0deg);}
+            100% {transform: translate(1px, -2px) rotate(-1deg);}
+          }
+        `;
+        document.head.appendChild(style);
+        
+        return () => {
+          document.head.removeChild(style);
+        };
+      }, []);
+    
 
     useEffect(() => {
         let interval: NodeJS.Timeout;
@@ -354,6 +549,31 @@ const LGUMain = () => {
         };
     }, [isInvisible, userId, token]);
 
+    // Check for incidents with responderStatus "close"
+    useEffect(() => {
+        const checkForClosingIncidents = () => {
+            // Only show modal if we're not already showing it and there's no incident being processed
+            if (showClosingModal || closingIncident) {
+                return;
+            }
+            
+            // Find an incident with responderStatus "close" that isn't finished yet
+            const incidentToClose = incidents.find(incident => 
+                incident.responderStatus === 'close' && !incident.isFinished
+            );
+            
+            if (incidentToClose) {
+                console.log('Found incident requesting to close:', incidentToClose._id);
+                setClosingIncident(incidentToClose);
+                setShowClosingModal(true);
+            }
+        };
+        
+        // Only run the check if we have incidents loaded
+        if (incidents.length > 0) {
+            checkForClosingIncidents();
+        }
+    }, [incidents, showClosingModal, closingIncident]);
 
 useEffect(() => {
     const timer = setInterval(() => {
@@ -385,6 +605,77 @@ useEffect(() => {
     
     return () => clearInterval(timer);
 }, []);
+
+    // Preload audio files
+    useEffect(() => {
+        // Create and preload audio elements
+        const preloadAudio = (src: string) => {
+            const audio = new Audio();
+            audio.src = src;
+            audio.load();
+        };
+
+        // Preload all sound files
+        preloadAudio(policeSound);
+        preloadAudio(fireSound);
+        preloadAudio(ambulanceSound);
+        preloadAudio(generalSound);
+
+        // Initialize the main audio element
+        if (audioRef.current) {
+            audioRef.current.volume = 1.0;
+        }
+    }, []);
+
+    // Function to enable audio
+    const enableAudio = () => {
+        setAudioEnabled(true);
+        
+        // If there's a pending audio type, play it
+        if (pendingAudioType && audioRef.current) {
+            switch (pendingAudioType.toLowerCase()) {
+                case 'police':
+                    audioRef.current.src = policeSound;
+                    break;
+                case 'fire':
+                    audioRef.current.src = fireSound;
+                    break;
+                case 'medical':
+                    audioRef.current.src = ambulanceSound;
+                    break;
+                default:
+                    audioRef.current.src = generalSound;
+            }
+            
+            audioRef.current.currentTime = 0;
+            audioRef.current.volume = 1;
+            audioRef.current.play().catch(error => {
+                console.error('Error playing sound after user interaction:', error);
+            });
+        }
+    };
+
+    // Add event listeners for user interaction
+    useEffect(() => {
+        const handleUserInteraction = () => {
+            if (!audioEnabled) {
+                enableAudio();
+            }
+        };
+
+        // Add event listeners to various user interactions
+        document.addEventListener('click', handleUserInteraction);
+        document.addEventListener('keydown', handleUserInteraction);
+        document.addEventListener('touchstart', handleUserInteraction);
+
+        return () => {
+            document.removeEventListener('click', handleUserInteraction);
+            document.removeEventListener('keydown', handleUserInteraction);
+            document.removeEventListener('touchstart', handleUserInteraction);
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [audioEnabled]);
+
     const toggleStatus = async () => {
         try {
             if (!client || !userId) return;
@@ -443,14 +734,57 @@ useEffect(() => {
                     );
                     
                     if (connectingIncident) {
+                        // Check if this is a new connecting incident
+                        if (lastIncidentId !== connectingIncident._id) {
+                            console.log('New incident detected:', connectingIncident.incidentType);
+                            setLastIncidentId(connectingIncident._id);
+                            
+                            // Store the incident type for later playback
+                            setPendingAudioType(connectingIncident.incidentType);
+                            
+                            // Only try to play immediately if audio is already enabled
+                            if (audioEnabled && audioRef.current) {
+                                console.log('Playing audio for incident type:', connectingIncident.incidentType.toLowerCase());
+                                switch (connectingIncident.incidentType.toLowerCase()) {
+                                    case 'police':
+                                        audioRef.current.src = policeSound;
+                                        break;
+                                    case 'fire':
+                                        audioRef.current.src = fireSound;
+                                        break;
+                                    case 'medical':
+                                        audioRef.current.src = ambulanceSound;
+                                        break;
+                                    default:
+                                        audioRef.current.src = generalSound;
+                                }
+                                
+                                // Reset the audio element
+                                audioRef.current.currentTime = 0;
+                                audioRef.current.volume = 1;
+                                
+                                // Play the audio
+                                audioRef.current.play().catch(error => {
+                                    console.error('Error playing sound:', error);
+                                });
+                            } else {
+                                console.log('Audio playback deferred until user interaction');
+                            }
+                        }
+                        
                         setConnectingIncident(connectingIncident);
                         setShowStatusModal(true);
-                        if (connectingIncident.incidentDetails.coordinates.lat && connectingIncident.incidentDetails.coordinates.lon) {
+                        if (connectingIncident.incidentDetails?.coordinates?.lat && connectingIncident.incidentDetails?.coordinates?.lon) {
                             const formattedAddress = await getAddressFromCoordinates(
                                 connectingIncident.incidentDetails.coordinates.lat.toString(),
                                 connectingIncident.incidentDetails.coordinates.lon.toString()
                             );
                             setAddress(formattedAddress);
+                        }
+                    } else {
+                        // Reset lastIncidentId if there's no connecting incident
+                        if (lastIncidentId !== null) {
+                            setLastIncidentId(null);
                         }
                     }
                 }
@@ -459,9 +793,9 @@ useEffect(() => {
             }
         };
     
-        const interval = setInterval(checkConnectingIncidents, 5000); 
+        const interval = setInterval(checkConnectingIncidents, 2000); 
         return () => clearInterval(interval);
-    }, [userId, token, isInvisible]);
+    }, [userId, token, isInvisible, lastIncidentId]);
     const getNextChannelId = async (incidentType: string, incidentId: string) => {
         try {
             const data = incidentId.substring(4,9);
@@ -475,6 +809,14 @@ useEffect(() => {
         if (!connectingIncident) return;
     
         try {
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current.currentTime = 0;
+            }
+            
+            // Clear pending audio
+            setPendingAudioType(null);
+            
             const channelId = await getNextChannelId(connectingIncident.incidentType, connectingIncident._id);
             const channel = client.channel('messaging', channelId, {
                 name: `${connectingIncident.incidentType} Incident #${channelId.split('-')[1]}`,
@@ -509,10 +851,19 @@ useEffect(() => {
             console.error('Error accepting incident:', error);
         }
     };
+    
     const handleDeclineIncident = async () => {
         if (!connectingIncident) return;
     
         try {
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current.currentTime = 0;
+            }
+            
+            // Clear pending audio
+            setPendingAudioType(null);
+            
             const response = await fetch(`${config.PERSONAL_API}/incidents/update/${connectingIncident._id}`, {
                 method: 'PUT',
                 headers: {
@@ -531,6 +882,46 @@ useEffect(() => {
             }
         } catch (error) {
             console.error('Error declining incident:', error);
+        }
+    };
+
+    const handleFinishIncident = async () => {
+        if (!closingIncident) return;
+        
+        try {
+            const response = await fetch(`${config.PERSONAL_API}/incidents/update/${closingIncident._id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    isFinished: true
+                })
+            });
+            
+            if (response.ok) {
+                console.log(`Incident ${closingIncident._id} marked as finished`);
+                
+                // Update the incident in the local state
+                setIncidents(prevIncidents => 
+                    prevIncidents.map(incident => 
+                        incident._id === closingIncident._id 
+                            ? { ...incident, isFinished: true } 
+                            : incident
+                    )
+                );
+                
+                // Clear modal state
+                setClosingIncident(null);
+                setShowClosingModal(false);
+                
+                // Fetch the latest incidents (not immediately needed since we updated local state)
+                // This will run in the background to ensure data consistency
+                fetchIncidents();
+            }
+        } catch (error) {
+            console.error('Error finishing incident:', error);
         }
     };
 
@@ -705,6 +1096,7 @@ useEffect(() => {
 
     return (
         <div className="min-h-screen bg-[#1B4965] flex items-center justify-center">
+            <audio ref={audioRef} preload="auto" />
             <Container 
                 maxWidth="xl" 
                 disableGutters 
@@ -978,7 +1370,10 @@ useEffect(() => {
                                 No active incidents
                             </Typography>
                             <Typography sx={{ color: 'white' }}>
-                                {isInvisible ? "You are currently OFFLINE. Click on your avatar to change your status to ONLINE." : "You are ONLINE. No incidents are currently assigned to you."}
+                                {isInvisible ? 
+                                    "You are currently OFFLINE. Click on your avatar to change your status to ONLINE." : 
+                                    "You are ONLINE. No active incidents are currently assigned to you. Completed incidents have been filtered out."
+                                }
                             </Typography>
                         </Box>
                     )}
@@ -1002,20 +1397,23 @@ useEffect(() => {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    border: 'none',
+                    outline: 'none',
                 }}
+                disableAutoFocus
             >
-                <div className="min-h-[250px] flex items-center justify-center">
+                <div className="min-h-[250px] flex items-center justify-center" style={{ border: 'none', outline: 'none' }}>
                     {connectingIncident ? (
                         <Paper 
-                            elevation={3} 
+                            elevation={0} 
                             className="shake_me"
                             sx={{ 
-                                width: '550px',
+                                width: '600px',
                                 margin: '0 auto',
                                 borderRadius: '20px',
                                 overflow: 'hidden',
                                 padding: 0,
-                                border: `1px solid white`,
+                                border: 'none'
                             }}
                         >
                             <div style={{ 
@@ -1042,30 +1440,49 @@ useEffect(() => {
                             </div>
                             <div style={{ 
                                 backgroundColor: "#4a7ab8", 
-                                padding: '14px 40px 14px 40px', 
+                                padding: '14px', 
                                 display: 'flex', 
                                 justifyContent: 'start',
                                 alignItems: 'center',
-                                gap: '1rem'
+                                // gap: '1rem',
                             }}>
+                                <div style={{
+                                    // backgroundColor: "red", 
+                                    display: 'flex', 
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                }}>
                                 <Avatar 
-                                    src={avatarImg}
-                                    sx={{ width: 96, height: 96 }}
+                                    src={getIncidentIcon(connectingIncident.incidentType?.toLowerCase() || 'general').icon}
+                                    sx={{ width: 120, height: 120,  }}
                                     alt={avatarImg}
                                 />
+                                </div>
+
+                                
                                 <div
                                     style={{ 
                                         display: 'flex', 
                                         flexDirection: 'column',
                                         alignItems: 'center',
+                                        justifyContent: 'center',
+                                        // backgroundColor: "red",
                                     }}>
                                     <Typography sx={{ color: 'white', fontWeight: 'bold', fontSize: '30px', textTransform: 'uppercase' }}>
                                         {connectingIncident.incidentType}
                                     </Typography>
-                                    <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold', textTransform: 'uppercase' }}>
+                                    <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold', textTransform: 'uppercase' }}>
                                         {connectingIncident.incidentDetails.incident}
                                     </Typography>
-                                    <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold' }}>
+                                    <Typography variant="body1" align="center" sx={{
+                                        color: 'white',
+                                        display: '-webkit-box',
+                                        WebkitLineClamp: 2, 
+                                        WebkitBoxOrient: 'vertical',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                    }}
+                                    title={address || "Loading address..."}>
                                         {address || 'Loading address...'}
                                     </Typography>
                                 </div>
@@ -1169,6 +1586,24 @@ useEffect(() => {
                                 >
                                     {!isInvisible ? "ON ACTIVE STAND-BY, WAITING DISPATCH" : "ON BREAK"}
                                 </Typography>
+                                
+                                {/* Add a sound test button */}
+                                <Button 
+                                    variant="outlined" 
+                                    size="small"
+                                    onClick={() => {
+                                        enableAudio();
+                                        if (audioRef.current) {
+                                            audioRef.current.src = generalSound;
+                                            audioRef.current.currentTime = 0;
+                                            audioRef.current.volume = 0.2;
+                                            audioRef.current.play().catch(e => console.error('Test sound failed:', e));
+                                        }
+                                    }}
+                                    sx={{ mt: 1, mb: 1 }}
+                                >
+                                    Enable Alerts
+                                </Button>
                             </Box>
                             
                             <Box
@@ -1199,6 +1634,89 @@ useEffect(() => {
                             </Box>
                             </Box>
                         </Box>
+                    )}
+                </div>
+            </Modal>
+            {/* Closing Incident Modal */}
+            <Modal
+                open={showClosingModal}
+                onClose={() => setShowClosingModal(false)}
+                aria-labelledby="closing-modal"
+                sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: 'none',
+                    outline: 'none'
+                }}
+            >
+                <div className="min-h-[250px] flex items-center justify-center" style={{ border: 'none', outline: 'none' }}>
+                    {closingIncident && (
+                        <Paper
+                            elevation={0}
+                            sx={{
+                                width: '500px',
+                                margin: '0 auto',
+                                borderRadius: '20px',
+                                overflow: 'hidden',
+                                padding: 0,
+                                border: 'none'
+                            }}
+                        >
+                            <div style={{
+                                backgroundColor: "#1B4965",
+                                padding: '16px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                            }}>
+                                <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold', textAlign: 'center' }}>
+                                    INCIDENT CLOSURE REQUEST
+                                </Typography>
+                            </div>
+                            
+                            <div style={{
+                                padding: '24px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '16px'
+                            }}>
+                                <Avatar
+                                    src={getIncidentIcon(closingIncident.incidentType?.toLowerCase() || 'general').icon}
+                                    sx={{ width: 80, height: 80 }}
+                                    alt="Incident type"
+                                />
+                                
+                                <Box sx={{ textAlign: 'center' }}>
+                                    <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
+                                        {closingIncident.incidentType?.toUpperCase()} INCIDENT
+                                    </Typography>
+                                    <Typography variant="body1" sx={{ mb: 1 }}>
+                                        ID: {closingIncident._id?.substring(0, 8)}
+                                    </Typography>
+                                    <Typography variant="body2" sx={{ color: 'text.secondary', mb: 3 }}>
+                                        The responder has requested to close this incident.
+                                    </Typography>
+                                </Box>
+                                
+                                <Button
+                                    variant="contained"
+                                    onClick={handleFinishIncident}
+                                    sx={{
+                                        bgcolor: '#4caf50',
+                                        color: 'white',
+                                        padding: '8px 24px',
+                                        '&:hover': {
+                                            bgcolor: '#388e3c'
+                                        }
+                                    }}
+                                >
+                                    CLOSE INCIDENT
+                                </Button>
+                            </div>
+                        </Paper>
                     )}
                 </div>
             </Modal>
